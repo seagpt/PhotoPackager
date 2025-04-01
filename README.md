@@ -1,296 +1,304 @@
-# PhotoPackager: Intelligent Photo Organization & Processing
+### Overview
 
-**Version:** 1.0.0-refactor (March 2025)   
-**Developed By:** Steven Seagondollar, DropShock Digital LLC   
-**License:** [MIT License](LICENSE.md)
+**PhotoPackager is a command-line utility designed to automate the organization, processing, and packaging of digital photo shoots.**
 
-[![Build Status](about:sanitized)](https://github.com/Droptimal/PhotoPackager) [![Code Coverage](about:sanitized)](https://github.com/Droptimal/PhotoPackager) [![License: MIT](about:sanitized)](LICENSE.md)
+This application streamlines the often tedious post-production workflow for photographers and studios. Developed by **Steven Seagondollar, DropShock Digital LLC**, PhotoPackager addresses the pain points of manually sorting images, creating multiple delivery formats (for print, web, previews), managing EXIF metadata consistently, renaming files sequentially, and assembling professional, client-ready packages. It achieves this through a configurable, automated process emphasizing efficiency, reliability, operational safety, and producing outputs that reflect the high-quality standards synonymous with the **DropShock Digital** brand. The tool is designed to be flexible, allowing configuration via command-line arguments or a central `config.py` file, ensuring it fits diverse studio workflows.
 
------
+**End-User Configuration & Studio Branding:**
 
-## ❗ CRITICAL: Disclaimer & Important Warnings ❗
+PhotoPackager is designed to be integrated into your studio's workflow. While the core software is developed and maintained by DropShock Digital LLC, you can (and should) customize key aspects via the `config.py` file:
 
-**Please read carefully before using PhotoPackager:**
+1.  **Studio Branding (`USER_...` variables):** Modify `USER_COMPANY_NAME`, `USER_WEBSITE`, and `USER_SUPPORT_EMAIL` in `config.py`. These values will be automatically incorporated into:
+    * The application's introductory screen (`print_intro`).
+    * The client-facing `README.txt` file generated inside each output package, ensuring deliveries reflect your brand identity and provide correct contact points for content-related queries.
+2.  **Interactive Prompt Defaults (`DEFAULT_...` variables):** Customize the default answers suggested when running the tool interactively (without command-line flags). This allows you to tailor the default interactive behavior (e.g., default EXIF handling, default original action) to your studio's standard practices. See the detailed comments within `config.py` for available options.
 
-  * **AS IS Software:** This software is provided "AS IS", without warranty of any kind, express or implied. Use entirely at your own risk. See the [LICENSE.md](LICENSE.md) file for the full disclaimer.
-  * **🛑 `--move` Option Risk:** The `--move` command-line argument (or corresponding interactive choice) **PERMANENTLY MOVES** original image files from your source directory to the output 'Export Originals' folder.
-      * **THERE IS NO UNDO.**
-      * **VERIFY BACKUPS:** Ensure you have reliable backups of your source images *before* using the `--move` option.
-      * The developers assume **NO RESPONSIBILITY** for data loss resulting from the use or misuse of this feature.
-  * **🧪 Test Thoroughly:** Use the `--dry-run` flag extensively to simulate operations and verify the expected outcome *before* running the tool on critical data or using destructive options like `--move`. Test with non-essential images first.
-  * **Dependencies:** Correct operation depends on the Python environment and installed libraries (`Pillow`, `tqdm`, etc.). Ensure setup instructions are followed precisely. Compatibility with all image formats or corrupted files is not guaranteed.
-  * **Liability:** In no event shall the authors or copyright holders be liable for any claim, damages, or other liability arising from the use of this software. Refer to [LICENSE.md](LICENSE.md).
+**Mandatory Original Author Attribution:**
 
------
+It is a requirement of the software's license and usage terms that attribution to the original developer, **Steven Seagondollar, DropShock Digital LLC**, is maintained. This attribution **must** remain present in:
+* The `LICENSE.md` file (immutable copyright line).
+* The footer of the generated `README.txt` file placed within each output package (alongside your studio's branding).
+* The detailed `photopackager_run.log` files generated for each processing run.
+This ensures proper credit for the tool's creation while allowing you to brand the *content delivery*.
 
-## Overview
+**Key Features:** ✨
 
-**PhotoPackager** is a robust Python command-line application designed to streamline the post-shoot workflow for photographers, studios, and media teams. It automates the tedious tasks of organizing source images, creating optimized web/print versions, handling EXIF metadata, ensuring consistent file naming, and packaging everything into a standardized, professional delivery structure.
+* **✨ Flexible Input Handling:** Process a single source folder containing images for one shoot (`--mode single`), or efficiently process a batch of shoots by pointing to a source folder containing multiple appropriately named subfolders, each representing a shoot (`--mode multi`). Auto-detection is attempted if `--mode` is omitted during interactive use.
+* **✨ Standardized, Professional Output Structure:** Automatically generates a meticulously organized and consistent folder hierarchy for each processed shoot (using names defined in `config.FOLDER_NAMES`, e.g., `RAW Files`, `Export Files`, `Optimized Files`, `Compressed Files`). This enhances client perception and simplifies file management.
+* **✨ Multi-Format Image Generation (JPG & WebP):** Creates multiple tiers of image outputs tailored for different use cases:
+    * **Optimized:** High-quality versions (JPEG quality typically ~`{config.OPTIMIZED_QUALITY}`, configurable) suitable for print and general digital use.
+    * **Compressed:** Significantly smaller, resized versions (target pixel count ~`{config.COMPRESSED_TARGET_PIXELS/1e6:.1f}MP`, configurable) using adaptive quality settings, ideal for web galleries, social media, and fast previews.
+    * Outputs generated in universally compatible **JPG** and modern, efficient **WebP** formats (generation of each format can be toggled via `--no-jpg`/`--no-webp` flags or interactive choices).
+* **✨ Configurable & Safe Original File Handling:** Provides explicit control over how original source files are managed:
+    * `copy`: (Default & Safest) Duplicates originals into the `Export Originals` folder.
+    * `move`: (**HIGH RISK**) Permanently moves originals. Requires explicit secondary confirmation. **USE ONLY AFTER VERIFYING BACKUPS.**
+    * `leave`: Leaves originals untouched in the source directory.
+    * `none` (`--skip-export`): Skips the entire `Export Files` creation process.
+* **✨ Granular EXIF Control:** Offers precise control over image metadata embedded in *generated* files (Optimized/Compressed):
+    * `keep`: (Default) Retains all original EXIF data.
+    * `date`: Removes only date/time-related tags (requires optional `piexif` library).
+    * `camera`: Removes only camera make/model/software tags (requires optional `piexif` library).
+    * `both`: Removes both date/time and camera-related tags (requires optional `piexif` library).
+    * `strip_all`: Removes all EXIF data entirely.
+    * Configurable via `--exif` flag or interactive selection.
+* **✨ Consistent Sequential File Renaming:** Automatically renames all processed images within their respective output subfolders to a clear, sortable `###-<BaseName>.ext` format (e.g., `001-ClientA_Wedding.jpg`, `002-ClientA_Wedding.jpg`).
+* **✨ Studio Branding Integration:** Seamlessly incorporates your studio's name, website, and support email (configured in `config.py`) into the client-facing `README.txt` generated within each delivery package.
+* **✨ Configurable Interactive Defaults:** Allows pre-setting default answers for interactive prompts (`config.DEFAULT_...` variables) to match your preferred workflow.
+* **✨ Mandatory Author Attribution:** Respects intellectual property by ensuring required attribution to DropShock Digital LLC is maintained in generated outputs and licensing.
+* **✨ Comprehensive Per-Shoot Logging:** Generates a detailed, timestamped `photopackager_run.log` file within each output shoot folder. This log meticulously records the configuration used, files found, actions performed (or simulated in dry run), errors encountered (with tracebacks where relevant), and processing times, crucial for diagnostics and auditing. Includes original author attribution.
+* **✨ Indispensable `--dry-run` Simulation:** A critical safety feature! The `--dry-run` flag performs a complete simulation of the entire workflow—folder creation, file gathering, image processing steps (resizing, quality calculation), renaming, README/log generation, ZIP creation—logging every intended action with a `[DRYRUN]` prefix **without modifying a single file or folder on your disk.** Essential for verifying configuration and predicting outcomes safely.
+* **✨ Automated Environment Setup (`bootstrap.py`):** On first execution (or if dependencies change), automatically checks for the correct Python version, verifies virtual environment activation (guiding the user if needed), checks `pip` status, and installs required runtime libraries (`Pillow`, `tqdm`, `colorama` on Windows) from `requirements.txt`, simplifying initial setup.
+* **✨ Optional ZIP Archiving:** Provides the convenience of automatically creating compressed `.zip` archives for the primary output folders (`Export Files`, `Optimized Files`, `Compressed Files`), making downloads easier for clients (can be disabled via `--no-zip` or interactive choice).
+* **✨ Parallel Processing (`--workers`):** Leverages multi-core processors by running image processing tasks in parallel, potentially significantly reducing overall execution time for large batches of images (configurable, defaults to system CPU count).
+* **✨ Desktop Notifications:** Attempts to provide native OS desktop notifications upon successful completion of processing runs or on critical failure, offering convenient background status updates (requires optional libraries like `win10toast-reborn` on Windows or system tools like `notify-send` on Linux; falls back to console/message box).
 
-Originally developed by **Steven Seagondollar, DropShock Digital LLC**, PhotoPackager is built with efficiency, reliability, and user-friendliness in mind, reflecting the high standards of DropShock Digital development.
+---
 
-**End-User Configuration:** While the core tool is developed and maintained by the original author, PhotoPackager allows the end-user (e.g., your photography studio) to configure specific branding details (`USER_COMPANY_NAME`, `USER_WEBSITE`, `USER_SUPPORT_EMAIL` in `config.py`) which are then reflected in the application's introduction screen and the `README.txt` files generated *within* the client delivery packages.
+### ❗ Warnings
 
-**Original Author Attribution:** Please note that while user branding is supported, generated outputs (`README.txt`, log files) contain mandatory attribution acknowledging the original development of the PhotoPackager tool by DropShock Digital LLC. The software license (`LICENSE.md`) also retains the original copyright.
+**Mandatory Reading: Understand these points before use.**
 
-## Key Features
+* **🛑 Critical Risk with `--move` Option:** Using `--move` **PERMANENTLY MOVES** original files. **This is IRREVERSIBLE.** **You MUST verify reliable backups** before using this option. DropShock Digital LLC assumes **NO LIABILITY** for data loss.
+* **🧪 Mandatory Testing with `--dry-run`:** **ALWAYS** use `--dry-run` first to simulate the process without changing files. This is essential to verify settings and prevent accidental data loss or incorrect processing, especially when using `--move`. Test with non-critical images initially.
+* **System Requirements:** Requires **Python 3.8 or higher**. Depends critically on `Pillow` and `tqdm` libraries (installed by `bootstrap.py`). Partial EXIF stripping requires manual installation of `piexif`.
+* **Known Limitations:**
+    * *WebP EXIF Preservation:* Standard `Pillow` library may not reliably preserve EXIF metadata when saving WebP files. If EXIF in WebP is critical, alternative tools might be needed.
+    * *File Formats:* While aiming for broad compatibility via `Pillow`, successful processing of *every* possible image format variant or severely corrupted file is not guaranteed.
+    * *Notifications:* Desktop notification reliability depends on the OS, installed helper tools (e.g., `win10toast-reborn`, `notify-send`), and system configuration. Fallbacks are provided.
+* **Security:** While the script validates input formats to some extent, ensure source paths provided interactively or via CLI point to trusted locations.
+* **AS IS Software & Liability:** This software is provided "AS IS" without warranty. Use at your own risk. See [LICENSE.md](LICENSE.md) for the full disclaimer and limitation of liability.
 
-  * **Flexible Input Modes:** Process a single shoot folder (`--mode single`) or a directory containing multiple shoot subfolders (`--mode multi`).
-  * **Standardized Output Structure:** Automatically generates a consistent folder hierarchy for each shoot (`RAW Files`, `Export Files`, `Optimized Files`, `Compressed Files`) making deliveries professional and easy to navigate.
-  * **Multi-Format Image Generation:** Creates optimized (`~90%` quality) and compressed (`~2MP`, adaptive quality) versions in both `JPG` (universal) and `WebP` (modern, efficient) formats (configurable via `--no-jpg`/`--no-webp`).
-  * **Configurable Original File Handling:** Choose to `copy` originals (safest), `move` originals (use `--move` with extreme caution\!), or `leave` originals untouched during processing. Use `--skip-export` to bypass this stage entirely.
-  * **Granular EXIF Metadata Control:** Keep all EXIF, strip date/time tags, strip camera make/model tags, strip both, or strip all EXIF data using the `--exif` flag or interactive prompt.
-  * **Sequential File Renaming:** Renames all processed files within output folders to a clean `###-ShootBaseName.ext` format for easy sorting and identification.
-  * **User Branding Integration:** Allows studios using the tool to insert their company name, website, and support email into generated `README.txt` files via simple `config.py` settings.
-  * **Mandatory Author Attribution:** Ensures credit to the original tool developer is maintained in generated outputs and licensing.
-  * **Comprehensive Logging:** Creates a detailed `photopackager_run.log` file within each output shoot folder, recording all actions, settings, and errors for troubleshooting.
-  * **Dry Run Simulation:** Includes a crucial `--dry-run` flag to simulate the entire process and log intended actions without making *any* changes to your files or folders. **Use this extensively for testing\!**
-  * **Automated Environment Setup:** Includes `bootstrap.py` to check Python version, virtual environment status, and install missing dependencies (`Pillow`, `tqdm`, etc.) automatically on first run.
-  * **Optional ZIP Archiving:** Can automatically create `.zip` archives of the main output folders (`Export`, `Optimized`, `Compressed`) for easier distribution (`--no-zip` to disable).
-  * **Parallel Processing:** Utilizes multiple CPU cores (`--workers`) for faster image processing (where beneficial).
-  * **Desktop Notifications:** Provides native desktop notifications upon completion of shoots/runs (platform permitting).
+---
 
-## Understanding the Output Structure
+### 🔧 Instructions for Typical Users
 
-For each processed shoot, PhotoPackager creates a main folder named after the shoot (e.g., `ClientA_Wedding_Preview`). Inside, you will typically find:
+Follow these steps to get PhotoPackager running:
 
-```
-<Shoot_Name>/
-│
-├── RAW Files/
-│   └── README.txt          # Explains RAW file access policy (Folder often empty)
-│
-├── Export Files/
-│   └── Export Originals/
-│       ├── 001-<BaseName>.jpg  # Copied/Moved original files (renamed)
-│       └── ...
-│
-├── Optimized Files/
-│   ├── Optimized JPGs/
-│   │   ├── 001-<BaseName>.jpg  # High-quality JPG (~90%)
-│   │   └── ...
-│   └── Optimized WebPs/        # High-quality WebP (~90%)
-│       ├── 001-<BaseName>.webp
-│       └── ...
-│
-├── Compressed Files/
-│   ├── Compressed JPGs/
-│   │   ├── 001-<BaseName>.jpg  # Resized (~2MP), compressed JPG
-│   │   └── ...
-│   └── Compressed WebPs/       # Resized (~2MP), compressed WebP
-│       ├── 001-<BaseName>.webp
-│       └── ...
-│
-├── photopackager_run.log     # Detailed log for THIS shoot's processing run
-│
-└── README.txt                # README explaining THIS specific package/delivery
-                              # Includes YOUR (User) branding AND original tool attribution
+**⚙️ Prerequisites:**
 
-# Optional ZIP files (if enabled via --no-zip=False or interactively)
-# Zipped Export Files.zip
-# Zipped Optimized Files.zip
-# Zipped Compressed Files.zip
-```
+* **Python (Version 3.8+):** Verify with `python --version` or `python3 --version`. Install from [python.org](https://www.python.org/downloads/) if needed (ensure it's added to PATH).
+* **pip:** Included with modern Python.
+* **(Optional) Git:** Only needed if cloning the repository via Git. Download from [git-scm.com](https://git-scm.com/downloads).
+* **(Optional) piexif:** Only needed for partial EXIF stripping (`--exif date/camera/both`). Install later (Step 7).
 
-  * **`<Shoot_Name>`:** The name you provided for the shoot.
-  * **`<BaseName>`:** The base name you provided for file renaming.
-  * **Attribution Note:** The `README.txt` file inside this main `<Shoot_Name>` folder, intended for your client, will contain **your studio's branding** (from `config.py`) but also the **mandatory footer attributing PhotoPackager's development** to DropShock Digital LLC. The `photopackager_run.log` file will also contain attribution.
-
-## Project Code Structure (For Developers)
-
-PhotoPackager follows a modular structure for maintainability:
-
-  * `main.py`: Main script orchestrating the workflow (formerly `main_photodelivery.py`).
-  * `bootstrap.py`: Handles environment checks and dependency installation.
-  * `config.py`: Central repository for **ALL** constants and configuration settings (including User Branding and Original Author details).
-  * `ui.py`: Manages all console user interaction (intro, prompts, argument parsing setup).
-  * `filesystem.py`: Handles all file/folder operations (creation, gathering, renaming, zipping, README generation, `--dry-run` simulation).
-  * `image_processing.py`: Contains core image manipulation logic (resizing, compression, EXIF handling, `--dry-run` save skipping).
-  * `utils.py`: Holds generic helper functions (validation, notifications, signal handling).
-  * `requirements.txt`: Lists necessary Python libraries.
-  * `README.md`: This file.
-  * `LICENSE.md`: Full MIT License text with original copyright.
-  * `.gitignore`: Specifies files/folders ignored by Git.
-  * `venv/`: Standard virtual environment directory (created by user, ignored by Git).
-
-## Prerequisites
-
-  * **Python:** Version **3.8 or higher** is strictly required. Ensure Python is installed and added to your system's PATH. Download from [python.org](https://www.python.org/downloads/).
-  * **pip:** Python's package installer (usually included with Python 3.4+).
-
-## Setup & Installation Instructions
-
-**Follow these steps precisely:**
+**🔧 Simple Installation Steps:**
 
 1.  **Get the Code:**
-
-      * Download all the project files (`.py`, `requirements.txt`, `README.md`, `LICENSE.md`, `.gitignore`) into a dedicated folder for PhotoPackager (e.g., `C:\Users\YourName\PhotoPackager`).
-      * Alternatively, use Git to clone the repository (replace URL):
-        ```bash
-        git clone <repository_url> PhotoPackager
-        cd PhotoPackager
-        ```
-
-2.  **Open Terminal in Project Folder:**
-
-      * Navigate your terminal (Command Prompt, PowerShell, macOS Terminal, Linux Terminal) into the `PhotoPackager` folder you created/cloned. You **must** run subsequent commands from *within* this folder.
-
-3.  **Create Virtual Environment (Mandatory Best Practice):**
-
-      * Run the following command in your terminal (while inside the `PhotoPackager` folder):
-        ```bash
-        python -m venv venv
-        ```
-      * This creates an isolated Python environment named `venv` inside your project folder.
-
-4.  **Activate Virtual Environment:**
-
-      * This step is crucial\! You must activate the environment *each time* you want to run PhotoPackager in a new terminal session.
-      * **Windows (PowerShell):**
+    * **Git:** `git clone <repository_url> PhotoPackager` then `cd PhotoPackager`
+    * **Download:** Download ZIP, extract all files (`.py`, `.txt`, `.md`, `.gitignore`) to a `PhotoPackager` folder, `cd PhotoPackager` in terminal.
+2.  **Create Virtual Environment:** (In the `PhotoPackager` folder)
+    ```bash
+    python -m venv venv
+    ```
+3.  **Activate Virtual Environment:** (**Do this every time!**)
+    * **PowerShell:**
         ```powershell
         .\venv\Scripts\Activate.ps1
+        # If error, maybe run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
         ```
-          * **PowerShell Execution Policy Note:** If you see a red error message about "running scripts is disabled", run this *once* in your PowerShell session:
-            ```powershell
-            Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-            ```
-            Then try the `.\venv\Scripts\Activate.ps1` command again.
-      * **Windows (Command Prompt - CMD):**
+    * **CMD:**
         ```cmd
         venv\Scripts\activate.bat
         ```
-      * **macOS / Linux (Bash, Zsh, etc.):**
+    * **macOS/Linux:**
         ```bash
         source venv/bin/activate
         ```
-      * **Verification:** Your terminal prompt should now start with `(venv)`, like `(venv) C:\Users\YourName\PhotoPackager>`.
+    * **Verify:** Your prompt should start with `(venv)`.
+4.  **Configure `config.py`:**
+    * Open `config.py` in a text editor.
+    * **Mandatory:** Set `USER_COMPANY_NAME`, `USER_WEBSITE`, `USER_SUPPORT_EMAIL`.
+    * **Optional:** Adjust `DEFAULT_...` values for interactive prompts.
+    * Save the file.
+5.  **Run Bootstrap / Install Dependencies:** (With `venv` active)
+    ```bash
+    python main.py --help
+    ```
+    * If prompted `Install missing dependencies? [Y/n]:`, type `Y` and press Enter.
+6.  **(Optional) Install `piexif`:** If needed for partial EXIF stripping:
+    ```bash
+    pip install piexif
+    ```
+7.  **Ready:** PhotoPackager is set up!
 
-5.  **Configure User Branding (Optional but Recommended):**
+**Basic Usage (Interactive):**
 
-      * Open the `config.py` file in a text editor.
-      * Locate the "User Configuration" section.
-      * Change the placeholder values for `USER_COMPANY_NAME`, `USER_WEBSITE`, and `USER_SUPPORT_EMAIL` to match your studio's details.
-      * Save the `config.py` file.
-
-6.  **Install Dependencies (Automatic):**
-
-      * With the virtual environment **active** (you see `(venv)`), simply run the main script for the first time:
-        ```bash
-        python main.py
-        ```
-      * The `bootstrap.py` script will run automatically. It will check your Python version and then check for missing dependencies listed in `requirements.txt` (like `Pillow`, `tqdm`).
-      * If dependencies are missing, it will list them and ask for your permission (`[Y/n]`) to install them using `pip`. Press `Y` and Enter.
-      * *(Manual Install Alternative: If preferred, you can manually install after activating the venv by running `pip install -r requirements.txt`, but running `main.py` handles checks more robustly).*
-
-7.  **Ready to Use:** Once the bootstrap process completes without errors, PhotoPackager is ready to use\!
-
-## Usage
-
-**1. Interactive Mode (Recommended for First Use):**
-
-  * Ensure your virtual environment is active (`(venv)` visible in prompt).
-  * Run the script without arguments:
+1.  Activate the virtual environment: `source venv/bin/activate` (or Windows equivalent).
+2.  Run the script:
     ```bash
     python main.py
     ```
-  * Follow the on-screen prompts carefully:
-      * Enter the path to your source folder(s).
-      * Specify if it's a single shoot or multiple shoots in subfolders.
-      * Choose global options (formats, original handling, EXIF, ZIPs) - **Pay attention to the 'move' confirmation\!**
-      * For each shoot, provide a shoot name, base name for files, and output parent directory.
-  * The script will provide progress updates in the console.
+3.  Follow the on-screen prompts to provide the source folder path, choose processing options (press Enter for defaults), and configure shoot details. Pay close attention to any warnings, especially the confirmation for the `move` action.
 
-**2. Command-Line Mode (For Automation & Specific Settings):**
+**[Link to Latest Release/Downloads Placeholder]** *(Developer: Add link here if distributing releases)*
 
-  * Ensure your virtual environment is active.
+---
 
-  * Use `python main.py` followed by arguments. Get a full list with `python main.py --help`.
+### Instructions and Information for Advanced Users
 
-  * **Example 1: Process a single shoot, copy originals, keep EXIF, generate all formats + ZIPs (defaults):**
+**Advanced Installation:**
 
-    ```bash
-    python main.py --source "/path/to/MyShoot_Images"
-    ```
+* Cloning via Git (`git clone ...`) is recommended for easier updates (`git pull`).
+* Docker support may be added in the future for containerized execution.
 
-    *(Will ask for shoot name, base name, output parent interactively if `--output` is omitted)*
+**Full Configuration:**
 
-  * **Example 2: Process multiple shoots, specify output parent, disable WebP and ZIPs:**
+* **`config.py`:** Review this file for all configurable constants (image quality, folder names, UI defaults, ANSI colors, etc.). Comments provide detailed explanations.
+* **Command-Line Flags:** Use `python main.py --help` for a complete, up-to-date list. Key flags include:
+    * `--source <path>`: Path to source folder(s). **Mandatory if not interactive.**
+    * `--mode [single|multi]`: Force processing mode.
+    * `--output <path>`: Specify output parent directory.
+    * `--move`: **(HIGH RISK)** Move originals instead of copying. Requires backup verification.
+    * `--skip-export`: Completely skip handling originals and the 'Export Files' structure.
+    * `--exif [keep|date|camera|both|strip_all]`: Set EXIF handling policy (default `keep`).
+    * `--no-jpg` / `--no-webp`: Disable specific output formats.
+    * `--skip-compressed`: Don't generate smaller, compressed versions.
+    * `--no-zip`: Don't create final ZIP archives.
+    * `--workers <N>`: Set number of parallel processes (default: CPU cores).
+    * `--verbose` / `-v`: Enable detailed DEBUG logging.
+    * `--dry-run`: **(ESSENTIAL FOR TESTING)** Simulate actions without modifying files.
 
+**Usage Examples:**
+
+* Process multiple shoots, custom output, no WebP/ZIPs:
     ```bash
     python main.py --source "/path/to/All_Shoots" --mode multi --output "/path/to/Deliveries" --no-webp --no-zip
     ```
-
-    *(Will ask for name/base name for each subfolder shoot found in `All_Shoots`)*
-
-  * **Example 3: Process single shoot, MOVE originals, strip ALL EXIF, skip compressed versions:**
-
+* Single shoot, MOVE originals (CAUTION!), strip camera EXIF only, skip compressed:
     ```bash
-    # WARNING: --move PERMANENTLY MOVES FILES. ENSURE BACKUPS!
-    python main.py --source "D:\Photos\ClientB_Event" --mode single --move --exif strip_all --skip-compressed
+    # 🛑 WARNING: --move PERMANENTLY MOVES FILES! ENSURE BACKUPS EXIST! 🛑
+    python main.py --source "D:\Photos\ClientB" --mode single --move --exif camera --skip-compressed
+    ```
+* DRY RUN simulation for a multi-shoot scenario:
+    ```bash
+    # 🧪 Essential testing step 🧪
+    python main.py --source "/path/to/all_my_shoots" --mode multi --output "/path/to/test_output" --dry-run --verbose
+    ```
+* Use 4 workers, enable verbose logging:
+    ```bash
+    python main.py --source "/path/to/MyShoot" --workers 4 --verbose
     ```
 
-  * **Example 4: DRY RUN - Simulate processing multiple shoots without changing anything:**
+**Optional Dependencies:**
 
-    ```bash
-    # Use --dry-run to test your settings and see planned actions
-    python main.py --source "/path/to/All_Shoots" --mode multi --output "/path/to/Deliveries" --move --exif both --dry-run
-    ```
+* **`piexif`:** Enables `--exif date`, `--exif camera`, `--exif both`. Install via `pip install piexif`. Without it, these options fall back to `--exif strip_all`.
+* **`win10toast-reborn`:** Enables non-blocking "toast" notifications on Windows 10/11. Install via `pip install win10toast-reborn`. Without it, Windows notifications use a blocking message box.
+* **System Notification Tools:** `utils.py` attempts to use `notify-send` (Linux) or `osascript` / `terminal-notifier` (macOS) if available. These are typically installed via system package managers, not pip.
 
-    *(Review the console output carefully to see what *would* happen)*
+**Performance Tuning:**
 
-  * **Example 5: Process single shoot using only 2 workers and enable verbose logging:**
+* Adjust `--workers` based on your CPU cores, RAM, and disk speed. More workers isn't always faster, especially with slow I/O. Start with the default (CPU cores) and experiment. Use `--workers 1` for serial processing.
 
-    ```bash
-    python main.py --source "/path/to/MyShoot_Images" --workers 2 --verbose
-    ```
+**Advanced Workflows:**
 
-## Understanding Concepts
+* The comprehensive CLI flags allow integration into larger automation scripts or batch processing workflows. Monitor exit codes for success (0) or failure (non-zero).
 
-  * **JPG vs. WebP:**
-      * `JPG`: Universally compatible, standard lossy compression. Good for general use.
-      * `WebP`: Modern format developed by Google. Often provides better compression (smaller file size) than JPG at similar visual quality. Excellent for web use. May require newer software/browsers for viewing. PhotoPackager generates both (unless disabled) for flexibility.
-  * **Optimized vs. Compressed:**
-      * `Optimized`: High quality (\~90%), suitable for most uses including moderate prints. Slightly compressed to save space vs. original.
-      * `Compressed`: Significantly smaller files. Resized to \~2 Megapixels *then* compressed more aggressively (adaptive quality). Ideal for web galleries, social media, previews, email, where loading speed and file size are primary concerns. Not recommended for large prints.
-  * **EXIF Metadata:** Data embedded in image files by cameras/software, including camera settings (shutter speed, aperture, ISO), date/time, potentially GPS location, camera make/model, etc. You might remove it for privacy (location), to reduce file size slightly, or for specific client requirements.
-  * **Virtual Environments (`venv`):** Isolated Python environments that prevent conflicts between dependencies required by different projects. Using `venv` is crucial for reliable Python development.
+---
 
-## Default Behaviors
+### Technical Information
 
-  * If `--source` is omitted, you will be prompted.
-  * If `--mode` is omitted, you will be prompted based on the source path.
-  * If `--output` is omitted, output folders are created in the parent directory of the source shoot folder(s).
-  * Original files are **copied** by default. Use `--move` to change this (with caution).
-  * JPG and WebP formats are generated by default. Use `--no-jpg`/`--no-webp` to disable.
-  * Optimized and Compressed versions are generated by default. Use `--skip-compressed`. Export versions depend on original handling choice (`--skip-export` disables).
-  * All EXIF data is **kept** by default. Use `--exif <option>` to change.
-  * ZIP archives are **created** by default. Use `--no-zip` to disable.
-  * Parallel processing uses all available CPU cores by default (`os.cpu_count()`). Use `--workers <N>` to change.
-  * Logging is at the `INFO` level by default. Use `--verbose` or `-v` for `DEBUG` level.
-  * `--dry-run` is **disabled** by default.
+**Project/File Structure:**
 
-## Troubleshooting
+* `main.py`: Orchestrator, entry point, multiprocessing setup.
+* `bootstrap.py`: Environment setup/validation, dependency installation (run via subprocess).
+* `config.py`: Central configuration constants (paths, quality, defaults, UI styles).
+* `ui.py`: Console interaction, `argparse` setup, user prompts, validation loops.
+* `filesystem.py`: All disk I/O (folder creation, file gathering, copy/move/rename, README/log writing, zipping, dry-run simulation).
+* `image_processing.py`: Core image manipulation (Pillow usage: load, orient, resize, compress, save, EXIF handling, dry-run simulation).
+* `utils.py`: Generic helpers (name validation, notifications, signal handling).
+* `requirements.txt`: Runtime Python dependencies.
+* `README.md`: This documentation file.
+* `LICENSE.md`: MIT License text.
+* `.gitignore`: Specifies files/folders for Git to ignore.
+* `venv/`: (User-created) Virtual environment directory.
+* `.bootstrap_cache`: (Generated) Cache file for bootstrap script efficiency.
+* `tests/`: (Planned) Directory for automated tests.
 
-  * **Permission Denied Errors:** Ensure you have write permissions in the target output directory. Run your terminal as administrator (Windows, use with caution) or use `sudo` (macOS/Linux, use with caution) if necessary, although it's better to fix folder permissions.
-  * **`ModuleNotFoundError`:** Make sure your `venv` is **active** before running `python main.py`. Ensure dependencies were installed correctly (run `pip list` inside the active venv).
-  * **Image Processing Errors (Pillow):** Check the `photopackager_run.log` file inside the affected shoot's output folder. Errors might indicate corrupt/unsupported image files or memory issues.
-  * **Memory Issues/Crashes:** Processing very large images or using many `--workers` can consume significant RAM. Try reducing the number of workers (e.g., `--workers 2` or `--workers 1`).
-  * **PowerShell Activation Errors:** See the `Set-ExecutionPolicy` command in the Setup Instructions (Step 4).
-  * **File Not Found (During Processing):** If using `--move`, ensure the source files weren't deleted or moved elsewhere between steps. Check logs for details.
+**Architecture Overview:**
 
-## Support & Contact
+The application follows a modular design separating concerns: UI interaction (`ui.py`), filesystem operations (`filesystem.py`), image processing (`image_processing.py`), configuration (`config.py`), environment setup (`bootstrap.py`), and utilities (`utils.py`). `main.py` acts as the orchestrator, parsing arguments or running interactive prompts, then iterating through identified shoots. For each shoot, it delegates tasks to the appropriate modules. Image processing is parallelized using Python's `concurrent.futures.ProcessPoolExecutor` for potential speed gains. `--dry-run` capability is implemented within the `filesystem.py` and `image_processing.py` modules to simulate actions without execution.
 
-  * **For issues with the PhotoPackager tool itself** (bugs, errors, feature requests):
-      * Contact the original developer: **Steven Seagondollar, DropShock Digital LLC**
-      * Support Email: **support@dropshockdigital.com**
-      * GitHub Issues (if available): `<link_to_issues_page>` \* **For questions about the PHOTOS DELIVERED** using this tool (e.g., content, usage rights, specific edits):
-      * Contact the **studio/photographer who provided you the delivery package**:
-      * Company: **`[Your Studio Name Here - As set in config.py]`**
-      * Website: **`[Your Studio Website Here - As set in config.py]`**
-      * Support: **`[Your Studio Support Email Here - As set in config.py]`**
+**Development Workflow:**
 
-## License
+1.  Set up `venv` and run `bootstrap` (`python main.py --help`).
+2.  Install dev dependencies (e.g., `pip install pytest black flake8 ruff`).
+3.  Code Formatting: Use `black .`
+4.  Linting: Use `ruff check .` or `flake8 .`
+5.  Testing: Run tests using `pytest` (tests to be added).
+6.  Git: Use feature branches, follow Conventional Commits ([https://www.conventionalcommits.org/](https://www.conventionalcommits.org/)) for commit messages, create Pull Requests for review against `main`.
+
+**Dependency Rationale:**
+
+* `Pillow`: The de facto standard library for image manipulation in Python.
+* `tqdm`: Provides excellent, easy-to-use progress bars for console applications.
+* `piexif` (Optional): Pure Python library specifically for detailed EXIF manipulation, required for partial stripping.
+* `win10toast-reborn` (Optional, Windows): Provides non-blocking toast notifications on Windows.
+* `colorama` (Optional, Windows): Ensures ANSI color codes work correctly on older Windows terminals.
+
+**API/Hooks/Extension Points:**
+
+* None currently defined. The primary extension mechanism is modifying `config.py` or potentially contributing code via Pull Requests.
+
+---
+
+### ❓ FAQ / Troubleshooting
+
+**Common Issues & Solutions:**
+
+1.  **Error: `ModuleNotFoundError: No module named 'PIL'` (or `tqdm`, etc.)**
+    * **Cause:** Virtual environment (`venv`) is likely not active, or dependencies weren't installed.
+    * **Solution:**
+        * Ensure you are in the `PhotoPackager` directory in your terminal.
+        * Activate the `venv` using the correct command for your OS/shell (see Setup Step 3). Verify `(venv)` appears in your prompt.
+        * Rerun `python main.py --help` to trigger the bootstrap dependency check and installation.
+2.  **Error: Permission Denied**
+    * **Cause:** Your user account lacks read access to the source folder/files or write access to the output parent directory.
+    * **Solution:** Check and adjust folder permissions using your operating system's tools. Avoid running as Administrator/root if possible.
+3.  **PowerShell Activation Error (`...cannot be loaded because running scripts is disabled...`)**
+    * **Cause:** PowerShell's execution policy prevents running the activation script.
+    * **Solution:** Run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process` in the *same PowerShell session*, then retry activation.
+4.  **Image Processing Fails for Some Files:**
+    * **Cause:** File might be corrupted, not a supported image format, or have unusual/broken metadata. Memory limits might be exceeded for huge images.
+    * **Solution:** Check the `photopackager_run.log` file in the output folder for specific error messages related to the problematic file(s). Try opening the file in other software. If memory is an issue, reduce worker count using `--workers`.
+5.  **Output Files End Up in an Unexpected Location:**
+    * **Cause:** You likely provided a relative path for `--output`, which was resolved relative to the `PhotoPackager` script directory, not necessarily relative to your source directory.
+    * **Solution:** Verify the "Output Parent Directory" path reported in the console summary. Use absolute paths for `--source` and `--output` for clarity and predictability.
+6.  **Windows Notifications Are Blocking Popups:**
+    * **Cause:** The optional `win10toast-reborn` library is not installed.
+    * **Solution:** Activate `venv` and run `pip install win10toast-reborn` for non-blocking toast notifications. Otherwise, the blocking MessageBox is the intended fallback.
+7.  **How to Test Safely?**
+    * **Solution:** **ALWAYS** use the `--dry-run` flag! Combine it with `--verbose` (`python main.py --source ... --dry-run --verbose`) and carefully review the console output and the generated log file to see exactly what *would* happen before running without `--dry-run`.
+8.  **`--move` Didn't Move Files?**
+    * **Solution:** Did you explicitly confirm 'y' at the mandatory safety prompt? Pressing Enter or 'n' cancels the move and reverts to 'copy'. Check the log file for confirmation messages.
+
+**If problems persist, consult the `photopackager_run.log` file first, then refer to the Support & Contact section.**
+
+---
+
+### Changelog
+
+*(Developer: Link to `CHANGELOG.md` or add version summaries here)*
+
+---
+
+### Contributing
+
+*(Developer: Link to `CONTRIBUTING.md` or add guidelines here)*
+
+---
+
+### Acknowledgements
+
+* [Pillow (PIL Fork)](https://python-pillow.org/) - Core image processing.
+* [tqdm](https://github.com/tqdm/tqdm) - Console progress bars.
+* [piexif](https://github.com/hMatoba/Piexif) - Optional EXIF manipulation.
+* [win10toast-reborn](https://github.com/DatGuyFab/win10toast-reborn) - Optional Windows notifications.
+* [colorama](https://github.com/tartley/colorama) - Cross-platform ANSI color support.
+
+---
+
+### License
 
 Copyright (c) 2025 Steven Seagondollar, DropShock Digital LLC
 
-This project is licensed under the **MIT License**. See the [LICENSE.md](LICENSE.md) file for full details.
+This project is licensed under the terms of the **MIT License**. See the [LICENSE.md](LICENSE.md) file for full details.
