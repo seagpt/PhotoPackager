@@ -275,18 +275,6 @@ The application follows a modular design separating concerns: UI interaction (`u
 
 ---
 
-### Changelog
-
-*(Developer: Link to `CHANGELOG.md` or add version summaries here)*
-
----
-
-### Contributing
-
-*(Developer: Link to `CONTRIBUTING.md` or add guidelines here)*
-
----
-
 ### Acknowledgements
 
 * [Pillow (PIL Fork)](https://python-pillow.org/) - Core image processing.
