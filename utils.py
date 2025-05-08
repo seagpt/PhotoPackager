@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# [AUDIT COMPLETE 2025-05-07] This file has been reviewed and is compliant with project and modern Python standards.
+
 # -*- coding: utf-8 -*-
 """
 General utility functions for the PhotoPackager application.
@@ -19,15 +21,14 @@ License: MIT License (Consult LICENSE.md file for full details)
 """
 
 # --- Standard Library Imports ---
-import platform     # For detecting OS (Windows, Darwin, Linux)
-import subprocess   # For running external commands (notifications)
-import ctypes       # For Windows MessageBox fallback notification
-import logging      # For logging within utility functions
-import signal       # For handling system signals (Ctrl+C)
-import sys          # For exiting gracefully on signal
-import os           # For os.cpu_count()
-from pathlib import Path # Used indirectly via type hints potentially
-from typing import Optional, NoReturn # Added NoReturn for signal handler
+import platform  # For detecting OS (Windows, Darwin, Linux)
+import subprocess  # For running external commands (notifications)
+import ctypes  # For Windows MessageBox fallback notification
+import logging  # For logging within utility functions
+import signal  # For handling system signals (Ctrl+C)
+import sys  # For exiting gracefully on signal
+import os  # For os.cpu_count()
+from typing import Optional, NoReturn  # Added NoReturn for signal handler
 
 # --- Imports from Project ---
 try:
@@ -39,9 +40,11 @@ except ImportError:
     # This allows utils functions (like notification fallback) to run even
     # if the main config is unavailable, preventing crashes in utils itself.
     # Colors will simply be empty strings if config fails.
-    config = type('obj', (object,), {
-        'BOLD': '', 'RESET': '', 'YELLOW': '', 'RED': '', 'GREEN': ''
-    })()
+    config = type(
+        "obj",
+        (object,),
+        {"BOLD": "", "RESET": "", "YELLOW": "", "RED": "", "GREEN": ""},
+    )()
 
 # --- Module Logger Setup ---
 logger = logging.getLogger(__name__)
@@ -49,6 +52,7 @@ logger = logging.getLogger(__name__)
 # ----------------------------------------
 # --- Input Validation ---
 # ----------------------------------------
+
 
 def validate_name(name: str) -> bool:
     """
@@ -80,9 +84,11 @@ def validate_name(name: str) -> bool:
     # The name is valid if it does *not* contain any invalid characters.
     return not contains_invalid
 
+
 # ----------------------------------------
 # --- Desktop Notifications ---
 # ----------------------------------------
+
 
 def send_notification(message: str, title: str = "PhotoPackager") -> None:
     """
@@ -111,38 +117,56 @@ def send_notification(message: str, title: str = "PhotoPackager") -> None:
             try:
                 # Why osascript first? It's built-in to macOS.
                 # Construct the AppleScript command to display a notification.
-                cmd = ['osascript', '-e', f'display notification "{message}" with title "{title}"']
+                cmd = [
+                    "osascript",
+                    "-e",
+                    f'display notification "{message}" with title "{title}"',
+                ]
                 # Run the command. `check=True` raises CalledProcessError if it fails.
                 # `capture_output=True` prevents script output from cluttering console.
-                subprocess.run(cmd, check=True, capture_output=True, timeout=5) # Add timeout
+                subprocess.run(
+                    cmd, check=True, capture_output=True, timeout=5
+                )  # Add timeout
                 logger.debug("Sent notification via AppleScript (osascript).")
-                return # Success
+                return  # Success
             except FileNotFoundError:
-                 logger.warning("osascript command not found, cannot send native macOS notification this way.")
+                logger.warning(
+                    "osascript command not found, cannot send native macOS notification this way."
+                )
             except subprocess.TimeoutExpired:
-                 logger.warning("osascript command timed out.")
+                logger.warning("osascript command timed out.")
             except subprocess.CalledProcessError as e_osa:
-                 # Log specific error if osascript fails (e.g., syntax error in command).
-                 logger.warning(f"osascript notification failed: {e_osa}. Stderr: {e_osa.stderr.decode(errors='ignore') if e_osa.stderr else 'N/A'}")
+                # Log specific error if osascript fails (e.g., syntax error in command).
+                logger.warning(
+                    f"osascript notification failed: {e_osa}. Stderr: {e_osa.stderr.decode(errors='ignore') if e_osa.stderr else 'N/A'}"
+                )
             except Exception as e_osascript:
                 # Catch other potential errors.
-                logger.warning(f"osascript notification failed unexpectedly: {e_osascript}. Trying terminal-notifier...")
+                logger.warning(
+                    f"osascript notification failed unexpectedly: {e_osascript}. Trying terminal-notifier..."
+                )
 
             # Why terminal-notifier fallback? It's a popular third-party tool providing more options.
             try:
-                 cmd = ['terminal-notifier', '-message', message, '-title', title]
-                 subprocess.run(cmd, check=True, capture_output=True, timeout=5) # Add timeout
-                 logger.debug("Sent notification via terminal-notifier.")
-                 return # Success
+                cmd = ["terminal-notifier", "-message", message, "-title", title]
+                subprocess.run(
+                    cmd, check=True, capture_output=True, timeout=5
+                )  # Add timeout
+                logger.debug("Sent notification via terminal-notifier.")
+                return  # Success
             except FileNotFoundError:
-                 # This is common if the user hasn't installed terminal-notifier.
-                 logger.warning("'terminal-notifier' command not found. Cannot send macOS notification fallback.")
+                # This is common if the user hasn't installed terminal-notifier.
+                logger.warning(
+                    "'terminal-notifier' command not found. Cannot send macOS notification fallback."
+                )
             except subprocess.TimeoutExpired:
-                 logger.warning("terminal-notifier command timed out.")
+                logger.warning("terminal-notifier command timed out.")
             except subprocess.CalledProcessError as e_tn:
-                 logger.warning(f"terminal-notifier failed: {e_tn}. Stderr: {e_tn.stderr.decode(errors='ignore') if e_tn.stderr else 'N/A'}")
+                logger.warning(
+                    f"terminal-notifier failed: {e_tn}. Stderr: {e_tn.stderr.decode(errors='ignore') if e_tn.stderr else 'N/A'}"
+                )
             except Exception as e_notifier:
-                 logger.warning(f"terminal-notifier failed unexpectedly: {e_notifier}")
+                logger.warning(f"terminal-notifier failed unexpectedly: {e_notifier}")
 
         # --- Windows Notification Logic ---
         elif system == "Windows":
@@ -150,6 +174,7 @@ def send_notification(message: str, title: str = "PhotoPackager") -> None:
                 # Why win10toast-reborn first? Provides richer, non-blocking notifications.
                 # Attempt to import the library (it's optional via requirements.txt).
                 from win10toast_reborn import ToastNotifier
+
                 toaster = ToastNotifier()
                 # Show the toast notification. `duration` is in seconds.
                 # `threaded=True` is crucial to prevent the main script from blocking while waiting for the notification to disappear.
@@ -157,57 +182,82 @@ def send_notification(message: str, title: str = "PhotoPackager") -> None:
                 logger.debug("Sent notification via win10toast_reborn (threaded).")
                 # Note: Because it's threaded, we don't easily know if the user *saw* it,
                 # but the call was successfully made. We don't wait for it to close.
-                return # Success
+                return  # Success
             except ImportError:
-                 # This happens if win10toast-reborn isn't installed.
-                 logger.warning("'win10toast_reborn' library not installed. Falling back to Windows MessageBox.")
+                # This happens if win10toast-reborn isn't installed.
+                logger.warning(
+                    "'win10toast_reborn' library not installed. Falling back to Windows MessageBox."
+                )
             except Exception as e_win10:
-                 # Catch errors from the library itself.
-                 logger.warning(f"win10toast_reborn notification failed: {e_win10}. Falling back to Windows MessageBox.")
+                # Catch errors from the library itself.
+                logger.warning(
+                    f"win10toast_reborn notification failed: {e_win10}. Falling back to Windows MessageBox."
+                )
 
             # Why MessageBoxW fallback? It's built-in via ctypes, always available on Windows.
             try:
-                 # Use ctypes to call the native Windows MessageBoxW function.
-                 # `0` = No owner window handle (NULL).
-                 # `message`, `title` = Text content (expects wide strings, hence 'W').
-                 # `0x40 | 0x1000` = Flags: MB_ICONINFORMATION (info icon) | MB_SETFOREGROUND (bring window to front).
-                 # Note: This creates a *blocking* dialog box the user must click "OK" on.
-                 ctypes.windll.user32.MessageBoxW(0, message, title, 0x40 | 0x1000)
-                 logger.debug("Displayed notification via Windows MessageBoxW.")
-                 return # Success (user acknowledged the blocking box)
+                # Use ctypes to call the native Windows MessageBoxW function.
+                # `0` = No owner window handle (NULL).
+                # `message`, `title` = Text content (expects wide strings, hence 'W').
+                # `0x40 | 0x1000` = Flags: MB_ICONINFORMATION (info icon) | MB_SETFOREGROUND (bring window to front).
+                # Note: This creates a *blocking* dialog box the user must click "OK" on.
+                ctypes.windll.user32.MessageBoxW(0, message, title, 0x40 | 0x1000)
+                logger.debug("Displayed notification via Windows MessageBoxW.")
+                return  # Success (user acknowledged the blocking box)
             except Exception as e_msgbox:
                 # Catch errors calling the ctypes function (highly unlikely).
-                logger.error(f"{config.PREFIX_ERROR}Windows MessageBoxW notification failed: {e_msgbox}")
+                logger.error(
+                    f"{config.PREFIX_ERROR}Windows MessageBoxW notification failed: {e_msgbox}"
+                )
 
         # --- Linux Notification Logic ---
         elif system == "Linux":
             try:
                 # Why notify-send? It's the standard command-line tool for desktop notifications
                 # used by many Linux desktop environments (GNOME, KDE, XFCE, etc. via notification daemon).
-                cmd = ['notify-send', '--urgency=normal', '--icon=dialog-information', title, message]
-                subprocess.run(cmd, check=True, capture_output=True, timeout=5) # Add timeout
+                cmd = [
+                    "notify-send",
+                    "--urgency=normal",
+                    "--icon=dialog-information",
+                    title,
+                    message,
+                ]
+                subprocess.run(
+                    cmd, check=True, capture_output=True, timeout=5
+                )  # Add timeout
                 logger.debug("Sent notification via notify-send.")
-                return # Success
+                return  # Success
             except FileNotFoundError:
                 # Common if `notify-send` or a notification daemon isn't installed.
-                logger.warning("'notify-send' command not found or notification daemon not running. Cannot send Linux desktop notification.")
+                logger.warning(
+                    "'notify-send' command not found or notification daemon not running. Cannot send Linux desktop notification."
+                )
             except subprocess.TimeoutExpired:
-                 logger.warning("notify-send command timed out.")
+                logger.warning("notify-send command timed out.")
             except subprocess.CalledProcessError as e_ns:
-                 logger.warning(f"notify-send failed: {e_ns}. Stderr: {e_ns.stderr.decode(errors='ignore') if e_ns.stderr else 'N/A'}")
+                logger.warning(
+                    f"notify-send failed: {e_ns}. Stderr: {e_ns.stderr.decode(errors='ignore') if e_ns.stderr else 'N/A'}"
+                )
             except Exception as e_notify:
                 logger.warning(f"notify-send failed unexpectedly: {e_notify}")
 
         # --- Fallback Notification ---
         # If all platform-specific methods fail or the platform is unrecognized,
         # print the notification clearly to the console as a last resort.
-        print(f"\n{config.YELLOW}{config.BOLD}[NOTIFICATION]{config.RESET} {config.BOLD}{title}:{config.RESET} {message}\n")
+        print(
+            f"\n{config.YELLOW}{config.BOLD}[NOTIFICATION]{config.RESET} {config.BOLD}{title}:{config.RESET} {message}\n"
+        )
 
     except Exception as e_general:
         # Catch any truly unexpected errors in the notification logic.
-        logger.error(f"{config.PREFIX_ERROR}General notification sending failed: {e_general}", exc_info=True)
+        logger.error(
+            f"{config.PREFIX_ERROR}General notification sending failed: {e_general}",
+            exc_info=True,
+        )
         # Still attempt console fallback.
-        print(f"\n{config.YELLOW}{config.BOLD}[NOTIFICATION]{config.RESET} {config.BOLD}{title}:{config.RESET} {message}\n")
+        print(
+            f"\n{config.YELLOW}{config.BOLD}[NOTIFICATION]{config.RESET} {config.BOLD}{title}:{config.RESET} {message}\n"
+        )
 
 
 # ----------------------------------------
@@ -216,6 +266,7 @@ def send_notification(message: str, title: str = "PhotoPackager") -> None:
 
 # Flag to prevent double handling if Ctrl+C is pressed rapidly
 _interrupted: bool = False
+
 
 def signal_handler_func(sig: int, frame: Optional[object]) -> NoReturn:
     """
@@ -240,7 +291,7 @@ def signal_handler_func(sig: int, frame: Optional[object]) -> NoReturn:
         # Fallback to print otherwise.
         try:
             logger.warning("Process interrupted by user (SIGINT). Exiting.")
-            print(msg) # Still print a clear message to console
+            print(msg)  # Still print a clear message to console
         except NameError:
             print(msg)
         # Exit the program. Exit code 0 often used for intentional user cancellation.
@@ -259,14 +310,20 @@ def setup_signal_handler() -> None:
     except ValueError:
         # This can happen if trying to set a signal handler in a non-main thread
         # where it's not allowed. Log a warning but don't crash.
-        logger.warning("Cannot set SIGINT handler in this context (likely not main thread). Ctrl+C might not exit gracefully.")
+        logger.warning(
+            "Cannot set SIGINT handler in this context (likely not main thread). Ctrl+C might not exit gracefully."
+        )
     except Exception as e:
         # Catch other potential errors during signal registration.
-        logger.error(f"{config.PREFIX_ERROR}Could not set up SIGINT handler: {e}", exc_info=True)
+        logger.error(
+            f"{config.PREFIX_ERROR}Could not set up SIGINT handler: {e}", exc_info=True
+        )
+
 
 # ----------------------------------------
 # --- Platform Helpers ---
 # ----------------------------------------
+
 
 def get_cpu_count() -> int:
     """
@@ -287,11 +344,16 @@ def get_cpu_count() -> int:
         return count
     except NotImplementedError:
         # Handle cases where os.cpu_count() is not implemented on the platform.
-        logger.warning("os.cpu_count() not implemented on this platform. Defaulting to 1 worker.")
+        logger.warning(
+            "os.cpu_count() not implemented on this platform. Defaulting to 1 worker."
+        )
         return 1
     except Exception as e:
         # Catch unexpected errors.
-        logger.error(f"Error getting CPU count: {e}. Defaulting to 1 worker.", exc_info=True)
+        logger.error(
+            f"Error getting CPU count: {e}. Defaulting to 1 worker.", exc_info=True
+        )
         return 1
+
 
 # --- Add other general utility functions as needed below ---

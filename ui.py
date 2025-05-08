@@ -31,8 +31,9 @@ import os
 import logging
 import argparse
 from pathlib import Path
+
 # Import necessary types for hinting
-from typing import Dict, Any, Union, Tuple, Optional, List
+from typing import Union, Tuple, Optional, List
 
 # --- Project-Specific Imports ---
 # Use try-except to handle potential import errors gracefully, although these
@@ -41,14 +42,9 @@ try:
     # config.py: Central repository for ALL constants and settings. CRITICAL.
     import config
     # utils.py: Provides generic helper functions like name validation.
-    import utils
 except ImportError as e:
-    # If these core modules are missing, the application cannot function.
-    # Print an error message directly as logging might not be fully set up.
-    print(f"CRITICAL ERROR: Failed to import core modules (config, utils) in ui.py: {e}. "
-          "Ensure all project files are present. Exiting.", file=sys.stderr)
-    # Exit immediately. Status code 1 indicates an error.
-    exit(1) # Changed sys.exit to exit, as sys was not imported here. Direct exit is fine.
+    print(f"[ERROR] Failed to import a required module: {e}")
+    exit(1)
 
 # --- Module Logger Setup ---
 # Get a logger specific to this module for internal UI-related logging.
@@ -58,6 +54,7 @@ logger = logging.getLogger(__name__)
 # ----------------------------------------
 # --- Introduction Screen ---
 # ----------------------------------------
+
 
 def print_intro() -> None:
     """
@@ -102,18 +99,6 @@ your images efficiently, saving you valuable time.
 3.  {config.BOLD}Process:{config.RESET} The tool automatically:
     * Creates a standardized output folder structure ({config.FOLDER_NAMES['export']}, {config.FOLDER_NAMES['optimized']}, {config.FOLDER_NAMES['compressed']}).
     * Generates high-quality 'Optimized' and web-friendly 'Compressed' versions.
-    * Sequentially renames processed files (e.g., 001-ShootName.jpg).
-    * Generates informative README.txt and detailed log files per shoot.
-4.  {config.BOLD}Output:{config.RESET} Receive professionally packaged shoot deliveries, ready for clients or archival.
-
-{config.RED}{config.BOLD}Important Notes:{config.RESET}
-------------------------------------------------------------
-* {config.BOLD}Use `--dry-run`:{config.RESET} Test the process without changing files using the `--dry-run` command-line flag. Highly recommended for first use or complex setups.
-* {config.BOLD}Backup Source Files:{config.RESET} Always ensure you have backups of your original images before processing, especially if considering the 'move' option.
-* {config.BOLD}`--move` Caution:{config.RESET} The 'move' option PERMANENTLY moves original files. Use with extreme care.
-* {config.BOLD}Interrupt:{config.RESET} Press Ctrl+C at any time to attempt a graceful cancellation.
-
-{config.YELLOW}Original Tool Development:{config.RESET} {config.ORIGINAL_AUTHOR} ({config.ORIGINAL_TOOL_REPO})
 """
     # --- Print to Console ---
     # Print the fully constructed introduction text.
@@ -121,12 +106,14 @@ your images efficiently, saving you valuable time.
     # Log that the intro was displayed (useful for debugging flow).
     logger.debug("Introduction screen printed to console.")
 
+
 # ----------------------------------------
 # --- Input Helper Functions ---
 # ----------------------------------------
 # These functions are responsible for reliably getting specific types of input
 # from the user via the console, incorporating validation, sanitization,
 # clear prompting, and adherence to the UI standards.
+
 
 def input_path(prompt: str) -> Path:
     """
@@ -153,13 +140,17 @@ def input_path(prompt: str) -> Path:
             # --- Prompt User ---
             # Construct the prompt with standard styling (Yellow, Reset) from config.
             # Use .strip() and .strip("'\"") for basic sanitization against common copy-paste issues.
-            raw_path_input: str = input(f"{config.YELLOW}{prompt}:{config.RESET} ").strip().strip("'\"")
+            raw_path_input: str = (
+                input(f"{config.YELLOW}{prompt}:{config.RESET} ").strip().strip("'\"")
+            )
 
             # --- Basic Input Check ---
             # Ensure the user provided some input.
             if not raw_path_input:
-                print(f"{config.RED}{config.PREFIX_ERROR}Input cannot be empty. Please provide a valid folder path.{config.RESET}")
-                continue # Re-prompt
+                print(
+                    f"{config.RED}{config.PREFIX_ERROR}Input cannot be empty. Please provide a valid folder path.{config.RESET}"
+                )
+                continue  # Re-prompt
 
             # --- Path Normalization and Validation ---
             # Use a try-except block specifically for path operations.
@@ -168,7 +159,9 @@ def input_path(prompt: str) -> Path:
                 expanded_path: str = os.path.expanduser(raw_path_input)
                 # Create a Path object and resolve it to an absolute path, handling '..' etc.
                 # This can raise OSError on invalid formats (e.g., on Windows with illegal chars).
-                normalized_path: Path = Path(expanded_path).resolve(strict=False) # strict=False allows resolving non-existent paths initially
+                normalized_path: Path = Path(expanded_path).resolve(
+                    strict=False
+                )  # strict=False allows resolving non-existent paths initially
 
                 # THE CRITICAL VALIDATION: Check if the resolved path exists AND is a directory.
                 if normalized_path.is_dir():
@@ -178,34 +171,49 @@ def input_path(prompt: str) -> Path:
                 else:
                     # Provide specific feedback if the path is not a directory or doesn't exist.
                     if normalized_path.exists():
-                         print(f"{config.RED}{config.PREFIX_ERROR}Path exists but is not a directory: '{normalized_path}'. Please enter a valid folder path.{config.RESET}")
+                        print(
+                            f"{config.RED}{config.PREFIX_ERROR}Path exists but is not a directory: '{normalized_path}'. Please enter a valid folder path.{config.RESET}"
+                        )
                     else:
-                         print(f"{config.RED}{config.PREFIX_ERROR}Directory not found: '{normalized_path}'. Please check the path and try again.{config.RESET}")
-                    continue # Re-prompt
+                        print(
+                            f"{config.RED}{config.PREFIX_ERROR}Directory not found: '{normalized_path}'. Please check the path and try again.{config.RESET}"
+                        )
+                    continue  # Re-prompt
 
             # --- Handle Path Resolution/Validation Errors ---
             except OSError as e_os:
                 # Catch OS-level errors during path resolution (e.g., invalid syntax for the OS).
-                print(f"{config.RED}{config.PREFIX_ERROR}Error resolving path '{raw_path_input}': {e_os}. Please enter a valid path format.{config.RESET}")
-                logger.warning(f"OSError resolving user path input '{raw_path_input}': {e_os}")
-                continue # Re-prompt
+                print(
+                    f"{config.RED}{config.PREFIX_ERROR}Error resolving path '{raw_path_input}': {e_os}. Please enter a valid path format.{config.RESET}"
+                )
+                logger.warning(
+                    f"OSError resolving user path input '{raw_path_input}': {e_os}"
+                )
+                continue  # Re-prompt
             except Exception as e_path:
                 # Catch any other unexpected errors during path processing.
-                print(f"{config.RED}{config.PREFIX_ERROR}An unexpected error occurred validating the path: {e_path}. Please try again.{config.RESET}")
-                logger.error(f"Unexpected error validating path in input_path: {e_path}", exc_info=True)
-                continue # Re-prompt
+                print(
+                    f"{config.RED}{config.PREFIX_ERROR}An unexpected error occurred validating the path: {e_path}. Please try again.{config.RESET}"
+                )
+                logger.error(
+                    f"Unexpected error validating path in input_path: {e_path}",
+                    exc_info=True,
+                )
+                continue  # Re-prompt
 
         # --- Handle Keyboard Interrupt ---
         except KeyboardInterrupt:
             # Allow Ctrl+C to interrupt the input loop gracefully.
             # The main signal handler (in utils/main) will catch this and exit.
             logger.warning("User interrupted path input.")
-            raise # Re-raise KeyboardInterrupt to be caught by the main handler.
+            raise  # Re-raise KeyboardInterrupt to be caught by the main handler.
         except EOFError:
-             # Handle unexpected end-of-file (e.g., if input is piped and ends)
-            print(f"\n{config.RED}{config.PREFIX_ERROR}Input stream ended unexpectedly. Exiting.{config.RESET}")
+            # Handle unexpected end-of-file (e.g., if input is piped and ends)
+            print(
+                f"\n{config.RED}{config.PREFIX_ERROR}Input stream ended unexpectedly. Exiting.{config.RESET}"
+            )
             logger.error("EOFError encountered during input prompt.")
-            exit(1) # Cannot proceed without input
+            exit(1)  # Cannot proceed without input
 
 
 def get_valid_name(prompt: str, default: str) -> str:
@@ -231,7 +239,9 @@ def get_valid_name(prompt: str, default: str) -> str:
             # --- Prompt User ---
             # Show the prompt and the default value clearly.
             # Use .strip() for basic whitespace sanitization.
-            user_input_name: str = input(f"{config.YELLOW}{prompt} (default: '{default}'):{config.RESET} ").strip()
+            user_input_name: str = input(
+                f"{config.YELLOW}{prompt} (default: '{default}'):{config.RESET} "
+            ).strip()
 
             # --- Handle Input Cases ---
             # 1. User pressed Enter (no input provided)
@@ -243,8 +253,10 @@ def get_valid_name(prompt: str, default: str) -> str:
                 else:
                     # This indicates an issue with the provided default value itself.
                     # It should be caught during development, but handled defensively here.
-                    print(f"{config.RED}{config.PREFIX_ERROR}The default name ('{default}') contains invalid characters. "
-                          f"Please provide a valid name manually.{config.RESET}")
+                    print(
+                        f"{config.RED}{config.PREFIX_ERROR}The default name ('{default}') contains invalid characters. "
+                        f"Please provide a valid name manually.{config.RESET}"
+                    )
                     # Loop continues, forcing user input as the default is unusable.
                     continue
 
@@ -252,8 +264,10 @@ def get_valid_name(prompt: str, default: str) -> str:
             elif not utils.validate_name(user_input_name):
                 # Provide specific feedback about invalid characters.
                 # Guidance: Refer to standard OS limitations.
-                print(f"{config.RED}{config.PREFIX_ERROR}The name '{user_input_name}' contains invalid characters. "
-                      f"Avoid using: \\ / : * ? \" < > | etc. Please try again.{config.RESET}")
+                print(
+                    f"{config.RED}{config.PREFIX_ERROR}The name '{user_input_name}' contains invalid characters. "
+                    f'Avoid using: \\ / : * ? " < > | etc. Please try again.{config.RESET}'
+                )
                 # Loop continues.
                 continue
 
@@ -265,10 +279,12 @@ def get_valid_name(prompt: str, default: str) -> str:
         # --- Handle Keyboard Interrupt ---
         except KeyboardInterrupt:
             logger.warning("User interrupted name input.")
-            raise # Re-raise for main handler
+            raise  # Re-raise for main handler
         except EOFError:
-             # Handle unexpected end-of-file
-            print(f"\n{config.RED}{config.PREFIX_ERROR}Input stream ended unexpectedly. Exiting.{config.RESET}")
+            # Handle unexpected end-of-file
+            print(
+                f"\n{config.RED}{config.PREFIX_ERROR}Input stream ended unexpectedly. Exiting.{config.RESET}"
+            )
             logger.error("EOFError encountered during name input prompt.")
             exit(1)
 
@@ -292,7 +308,11 @@ def get_valid_folder_path_input(prompt: str, default: Path) -> Path:
         try:
             # --- Prompt User ---
             # Show prompt and the string representation of the default path.
-            folder_input: str = input(f"{config.YELLOW}{prompt} (default: '{default}'):{config.RESET} ").strip().strip("'\"")
+            folder_input: str = (
+                input(f"{config.YELLOW}{prompt} (default: '{default}'):{config.RESET} ")
+                .strip()
+                .strip("'\"")
+            )
 
             target_path: Path
             is_default_used: bool = False
@@ -309,15 +329,26 @@ def get_valid_folder_path_input(prompt: str, default: Path) -> Path:
                     expanded_path: str = os.path.expanduser(folder_input)
                     # Resolve the path. Allow non-existent paths for now (mkdir will create).
                     target_path = Path(expanded_path).resolve(strict=False)
-                    logger.debug(f"Attempting to use user-provided output path: '{target_path}'")
+                    logger.debug(
+                        f"Attempting to use user-provided output path: '{target_path}'"
+                    )
                 except OSError as e_os:
-                    print(f"{config.RED}{config.PREFIX_ERROR}Error resolving path '{folder_input}': {e_os}. Please enter a valid path format.{config.RESET}")
-                    logger.warning(f"OSError resolving user output path input '{folder_input}': {e_os}")
-                    continue # Re-prompt
+                    print(
+                        f"{config.RED}{config.PREFIX_ERROR}Error resolving path '{folder_input}': {e_os}. Please enter a valid path format.{config.RESET}"
+                    )
+                    logger.warning(
+                        f"OSError resolving user output path input '{folder_input}': {e_os}"
+                    )
+                    continue  # Re-prompt
                 except Exception as e_resolve:
-                    print(f"{config.RED}{config.PREFIX_ERROR}An unexpected error occurred processing the path: {e_resolve}. Please try again.{config.RESET}")
-                    logger.error(f"Unexpected error resolving path in get_valid_folder_path_input: {e_resolve}", exc_info=True)
-                    continue # Re-prompt
+                    print(
+                        f"{config.RED}{config.PREFIX_ERROR}An unexpected error occurred processing the path: {e_resolve}. Please try again.{config.RESET}"
+                    )
+                    logger.error(
+                        f"Unexpected error resolving path in get_valid_folder_path_input: {e_resolve}",
+                        exc_info=True,
+                    )
+                    continue  # Re-prompt
 
             # --- Validate by Attempting Creation / Check Existing ---
             # Use a try-except block for the filesystem interaction (mkdir).
@@ -331,51 +362,75 @@ def get_valid_folder_path_input(prompt: str, default: Path) -> Path:
 
                 # One final check to ensure it IS a directory after mkdir (belt and suspenders)
                 if not target_path.is_dir():
-                     # This case is unlikely if mkdir succeeded but possible in race conditions or weird FS states.
-                     print(f"{config.RED}{config.PREFIX_ERROR}Path was created or existed, but is not a directory: '{target_path}'. Please check the path.{config.RESET}")
-                     logger.error(f"Path '{target_path}' confirmed not a directory after mkdir attempt.")
-                     continue # Re-prompt
+                    # This case is unlikely if mkdir succeeded but possible in race conditions or weird FS states.
+                    print(
+                        f"{config.RED}{config.PREFIX_ERROR}Path was created or existed, but is not a directory: '{target_path}'. Please check the path.{config.RESET}"
+                    )
+                    logger.error(
+                        f"Path '{target_path}' confirmed not a directory after mkdir attempt."
+                    )
+                    continue  # Re-prompt
 
                 # If mkdir succeeded or the directory already existed and is accessible:
                 log_source = "default" if is_default_used else "user-specified"
-                logger.info(f"Confirmed valid output parent directory ({log_source}): '{target_path}'")
+                logger.info(
+                    f"Confirmed valid output parent directory ({log_source}): '{target_path}'"
+                )
                 return target_path
 
             # --- Handle Creation/Access Errors ---
             except PermissionError:
                 # Specific feedback for permission issues.
-                print(f"{config.RED}{config.PREFIX_ERROR}Permission denied. Cannot create or access folder at: '{target_path}'. "
-                      f"Check permissions or choose a different location.{config.RESET}")
-                logger.warning(f"PermissionError accessing/creating output directory '{target_path}'")
-                continue # Re-prompt
+                print(
+                    f"{config.RED}{config.PREFIX_ERROR}Permission denied. Cannot create or access folder at: '{target_path}'. "
+                    f"Check permissions or choose a different location.{config.RESET}"
+                )
+                logger.warning(
+                    f"PermissionError accessing/creating output directory '{target_path}'"
+                )
+                continue  # Re-prompt
             except OSError as e_os_create:
                 # Catch other OS errors during mkdir (e.g., invalid name component on some OS, disk full).
-                print(f"{config.RED}{config.PREFIX_ERROR}Cannot create or access folder at '{target_path}'. OS Error: {e_os_create}. "
-                      f"Please check the path or disk space.{config.RESET}")
-                logger.error(f"OSError creating/accessing output directory '{target_path}': {e_os_create}", exc_info=True)
-                continue # Re-prompt
+                print(
+                    f"{config.RED}{config.PREFIX_ERROR}Cannot create or access folder at '{target_path}'. OS Error: {e_os_create}. "
+                    f"Please check the path or disk space.{config.RESET}"
+                )
+                logger.error(
+                    f"OSError creating/accessing output directory '{target_path}': {e_os_create}",
+                    exc_info=True,
+                )
+                continue  # Re-prompt
             except Exception as e_create:
                 # Catch any other unexpected errors during directory creation/check.
-                print(f"{config.RED}{config.PREFIX_ERROR}An unexpected error occurred confirming the output directory: {e_create}. "
-                      f"Please try again.{config.RESET}")
-                logger.error(f"Unexpected error creating/checking directory in get_valid_folder_path_input: {e_create}", exc_info=True)
-                continue # Re-prompt
+                print(
+                    f"{config.RED}{config.PREFIX_ERROR}An unexpected error occurred confirming the output directory: {e_create}. "
+                    f"Please try again.{config.RESET}"
+                )
+                logger.error(
+                    f"Unexpected error creating/checking directory in get_valid_folder_path_input: {e_create}",
+                    exc_info=True,
+                )
+                continue  # Re-prompt
 
         # --- Handle Keyboard Interrupt ---
         except KeyboardInterrupt:
             logger.warning("User interrupted output path input.")
-            raise # Re-raise for main handler
+            raise  # Re-raise for main handler
         except EOFError:
-             # Handle unexpected end-of-file
-            print(f"\n{config.RED}{config.PREFIX_ERROR}Input stream ended unexpectedly. Exiting.{config.RESET}")
+            # Handle unexpected end-of-file
+            print(
+                f"\n{config.RED}{config.PREFIX_ERROR}Input stream ended unexpectedly. Exiting.{config.RESET}"
+            )
             logger.error("EOFError encountered during output path input prompt.")
             exit(1)
+
 
 # ----------------------------------------
 # --- Option Gathering Functions ---
 # ----------------------------------------
 
-def ask_global_options() -> Dict[str, Union[bool, str]]:
+
+def ask_global_options() -> dict:
     """
     Asks the user interactively for global processing options that apply to all
     shoots being processed in the current run. Includes the mandatory safety
@@ -390,7 +445,7 @@ def ask_global_options() -> Dict[str, Union[bool, str]]:
         None
 
     Returns:
-        Dict[str, Union[bool, str]]: A dictionary containing the user's validated choices.
+        dict: A dictionary containing the user's validated choices.
             Keys include: 'generate_jpg', 'generate_webp', 'generate_optimized',
                           'generate_low_quality', 'generate_high_quality',
                           'original_action', 'exif_option', 'generate_zips'.
@@ -400,110 +455,201 @@ def ask_global_options() -> Dict[str, Union[bool, str]]:
         SystemExit: If validation fails critically (e.g., no output format selected).
     """
     # Initialize dictionary to store choices.
-    user_choices: Dict[str, Union[bool, str]] = {}
-    print(f"\n{config.BOLD}--- Global Processing Options (Apply to all shoots in this run) ---{config.RESET}")
+    user_choices = {}
+    print(
+        f"\n{config.BOLD}--- Global Processing Options (Apply to all shoots in this run) ---{config.RESET}"
+    )
 
     try:
         # --- Image Formats ---
         # Use `!= "n"` logic: Default is 'yes' unless user explicitly types 'n'.
-        val_jpg: str = input(f"{config.YELLOW}Generate JPG editions? [Y/n] (default: yes):{config.RESET} ").strip().lower()
-        user_choices["generate_jpg"] = (val_jpg != "n")
+        val_jpg: str = (
+            input(
+                f"{config.YELLOW}Generate JPG editions? [Y/n] (default: yes):{config.RESET} "
+            )
+            .strip()
+            .lower()
+        )
+        user_choices["generate_jpg"] = val_jpg != "n"
 
-        val_webp: str = input(f"{config.YELLOW}Generate WebP editions? [Y/n] (default: yes):{config.RESET} ").strip().lower()
-        user_choices["generate_webp"] = (val_webp != "n")
+        val_webp: str = (
+            input(
+                f"{config.YELLOW}Generate WebP editions? [Y/n] (default: yes):{config.RESET} "
+            )
+            .strip()
+            .lower()
+        )
+        user_choices["generate_webp"] = val_webp != "n"
 
         # CRITICAL VALIDATION: Ensure at least one output format is selected.
         if not (user_choices["generate_jpg"] or user_choices["generate_webp"]):
-            print(f"{config.RED}{config.PREFIX_ERROR}Processing aborted: You must select at least one output format (JPG or WebP).{config.RESET}")
+            print(
+                f"{config.RED}{config.PREFIX_ERROR}Processing aborted: You must select at least one output format (JPG or WebP).{config.RESET}"
+            )
             logger.critical("User selected no output formats. Aborting.")
-            exit(1) # Exit application if no formats are chosen.
-        logger.info(f"Output formats selected: JPG={user_choices['generate_jpg']}, WebP={user_choices['generate_webp']}")
+            exit(1)  # Exit application if no formats are chosen.
+        logger.info(
+            f"Output formats selected: JPG={user_choices['generate_jpg']}, WebP={user_choices['generate_webp']}"
+        )
 
         # --- Output Versions ---
         # Optimized files are currently always generated as they are prerequisites for compressed.
         # This could become configurable later if needed.
         user_choices["generate_optimized"] = True
-        logger.info("Optimized files (high-quality) will always be generated if processing occurs.")
+        logger.info(
+            "Optimized files (high-quality) will always be generated if processing occurs."
+        )
 
         # Ask about generating Compressed files (~2MP small versions).
-        val_low: str = input(f"{config.YELLOW}Generate Compressed Files (~{config.COMPRESSED_TARGET_PIXELS/1e6:.1f}MP web-friendly)? [Y/n] (default: yes):{config.RESET} ").strip().lower()
-        user_choices["generate_low_quality"] = (val_low != "n")
-        logger.info(f"Generate Compressed files: {user_choices['generate_low_quality']}")
+        val_low: str = (
+            input(
+                f"{config.YELLOW}Generate Compressed Files (~{config.COMPRESSED_TARGET_PIXELS/1e6:.1f}MP web-friendly)? [Y/n] (default: yes):{config.RESET} "
+            )
+            .strip()
+            .lower()
+        )
+        user_choices["generate_low_quality"] = val_low != "n"
+        logger.info(
+            f"Generate Compressed files: {user_choices['generate_low_quality']}"
+        )
 
         # --- Handling Originals for Export Folder ---
         # Explain the options clearly using folder names from config.
-        print(f"\n{config.YELLOW}How should original source images be handled for the '{config.FOLDER_NAMES['export']}' output folder?{config.RESET}")
-        print(f"  {config.BOLD}copy{config.RESET} : Create exact copies in '{config.FOLDER_NAMES['export_originals']}'. (Safest, Recommended Default)")
-        print(f"  {config.BOLD}move{config.RESET} : {config.RED}PERMANENTLY MOVE{config.RESET} originals to '{config.FOLDER_NAMES['export_originals']}'. Source folder will be empty!")
-        print(f"  {config.BOLD}leave{config.RESET}: Leave originals untouched. ('{config.FOLDER_NAMES['export_originals']}' will be empty if Export is generated)")
-        print(f"  {config.BOLD}n{config.RESET}    : Skip creating the '{config.FOLDER_NAMES['export']}' structure entirely.")
-        val_export: str = input(f"{config.YELLOW}Enter choice [copy/move/leave/n] (default: copy):{config.RESET} ").strip().lower()
+        print(
+            f"\n{config.YELLOW}How should original source images be handled for the '{config.FOLDER_NAMES['export']}' output folder?{config.RESET}"
+        )
+        print(
+            f"  {config.BOLD}copy{config.RESET} : Create exact copies in '{config.FOLDER_NAMES['export_originals']}'. (Safest, Recommended Default)"
+        )
+        print(
+            f"  {config.BOLD}move{config.RESET} : {config.RED}PERMANENTLY MOVE{config.RESET} originals to '{config.FOLDER_NAMES['export_originals']}'. Source folder will be empty!"
+        )
+        print(
+            f"  {config.BOLD}leave{config.RESET}: Leave originals untouched. ('{config.FOLDER_NAMES['export_originals']}' will be empty if Export is generated)"
+        )
+        print(
+            f"  {config.BOLD}n{config.RESET}    : Skip creating the '{config.FOLDER_NAMES['export']}' structure entirely."
+        )
+        val_export: str = (
+            input(
+                f"{config.YELLOW}Enter choice [copy/move/leave/n] (default: copy):{config.RESET} "
+            )
+            .strip()
+            .lower()
+        )
 
         # Set choices based on input. Default to 'copy' if input is invalid/empty.
         if val_export == "n":
-            user_choices["generate_high_quality"] = False # Flag to skip Export folder creation.
-            user_choices["original_action"] = "none" # Indicate no action needed on originals.
-            logger.info("Skipping Export Files generation entirely.")
+            user_choices["generate_high_quality"] = (
+                False  # Flag to skip Export folder creation.
+            )
+            user_choices["original_action"] = (
+                "none"  # Indicate no action needed on originals.
+            )
+            logger.info("Skipping Export Originals generation entirely.")
         elif val_export == "move":
-            user_choices["generate_high_quality"] = True # Export folder is needed to contain moved files.
+            user_choices["generate_high_quality"] = (
+                True  # Export folder is needed to contain moved files.
+            )
             user_choices["original_action"] = "move"
-            logger.warning("Selected 'move' action for original files. MANDATORY CONFIRMATION REQUIRED.")
+            logger.warning(
+                "Selected 'move' action for original files. MANDATORY CONFIRMATION REQUIRED."
+            )
 
             # --- MANDATORY 'move' CONFIRMATION (Non-Negotiable Safety Feature) ---
             while True:
                 # Explicitly warn the user about the destructive nature of 'move'.
-                confirm_move = input(f"{config.RED}{config.BOLD}WARNING:{config.RESET} {config.RED}You chose 'move'. This will PERMANENTLY move files from "
-                                     f"your source folder(s). This action cannot be undone. "
-                                     f"Ensure you have backups. Are you ABSOLUTELY SURE? [y/N]:{config.RESET} ").strip().lower()
+                confirm_move = (
+                    input(
+                        f"{config.RED}{config.BOLD}WARNING:{config.RESET} {config.RED}You chose 'move'. This will PERMANENTLY move files from "
+                        f"your source folder(s). This action cannot be undone. "
+                        f"Ensure you have backups. Are you ABSOLUTELY SURE? [y/N]:{config.RESET} "
+                    )
+                    .strip()
+                    .lower()
+                )
                 if confirm_move == "y":
                     # Only proceed if user explicitly types 'y'.
                     logger.warning("User explicitly confirmed 'move' action.")
-                    break # Exit confirmation loop, retaining 'move' choice.
-                elif confirm_move == "n" or confirm_move == "": # Default to 'N' (No)
+                    break  # Exit confirmation loop, retaining 'move' choice.
+                elif confirm_move == "n" or confirm_move == "":  # Default to 'N' (No)
                     # If user types 'n' or just hits Enter, revert to the safe 'copy' action.
-                    logger.warning("'move' action CANCELLED by user confirmation. Reverting to 'copy'.")
-                    user_choices["original_action"] = "copy" # Revert choice.
-                    print(f"{config.YELLOW}Original file handling set back to 'copy'.{config.RESET}")
-                    break # Exit confirmation loop.
+                    logger.warning(
+                        "'move' action CANCELLED by user confirmation. Reverting to 'copy'."
+                    )
+                    user_choices["original_action"] = "copy"  # Revert choice.
+                    print(
+                        f"{config.YELLOW}Original file handling set back to 'copy'.{config.RESET}"
+                    )
+                    break  # Exit confirmation loop.
                 else:
                     # Handle invalid confirmation input.
-                    print(f"{config.RED}Invalid input. Please enter 'y' or 'n'.{config.RESET}")
+                    print(
+                        f"{config.RED}Invalid input. Please enter 'y' or 'n'.{config.RESET}"
+                    )
                     # Loop continues until 'y' or 'n'/'Enter' is provided.
             # --- End Confirmation ---
 
         elif val_export == "leave":
-            user_choices["generate_high_quality"] = True # Still generate Export structure, but don't populate Originals.
+            user_choices["generate_high_quality"] = (
+                True  # Still generate Export structure, but don't populate Originals.
+            )
             user_choices["original_action"] = "leave"
-            logger.info("Original files will be left in source. '{0}' will be empty.".format(config.FOLDER_NAMES['export_originals']))
-        else: # Default behavior or explicit 'copy'.
+            logger.info(
+                "Original files will be left in source. '{0}' will be empty.".format(
+                    config.FOLDER_NAMES["export_originals"]
+                )
+            )
+        else:  # Default behavior or explicit 'copy'.
             user_choices["generate_high_quality"] = True
             user_choices["original_action"] = "copy"
-            logger.info("Original files will be COPIED to '{0}'.".format(config.FOLDER_NAMES['export_originals']))
+            logger.info(
+                "Original files will be COPIED to '{0}'.".format(
+                    config.FOLDER_NAMES["export_originals"]
+                )
+            )
 
         # --- EXIF Handling ---
-        print(f"\n{config.YELLOW}Choose EXIF metadata handling (affects Optimized/Compressed outputs):{config.RESET}")
+        print(
+            f"\n{config.YELLOW}Choose EXIF metadata handling (affects Optimized/Compressed outputs):{config.RESET}"
+        )
         print(f"  {config.BOLD}0{config.RESET}: Keep all original EXIF data. (Default)")
         print(f"  {config.BOLD}1{config.RESET}: Remove only Date/Time related tags.")
         print(f"  {config.BOLD}2{config.RESET}: Remove only Camera Make/Model tags.")
         print(f"  {config.BOLD}3{config.RESET}: Remove both Date/Time and Camera tags.")
         print(f"  {config.BOLD}4{config.RESET}: Remove ALL EXIF data.")
         # Explain dependency if partial stripping is chosen
-        print(f"  (Options 1-3 require the optional 'piexif' library to be installed; otherwise reverts to 'strip_all')")
-        exif_val: str = input(f"{config.YELLOW}Enter choice [0/1/2/3/4] (default: 0):{config.RESET} ").strip()
+        print(
+            f"  (Options 1-3 require the optional 'piexif' library to be installed; otherwise reverts to 'strip_all')"
+        )
+        exif_val: str = input(
+            f"{config.YELLOW}Enter choice [0/1/2/3/4] (default: 0):{config.RESET} "
+        ).strip()
 
         # Mapping from user input number to internal string representation used by image_processing.
         # This provides a slightly friendlier interface than typing the strings.
-        exif_mapping: Dict[str, str] = {"0": "keep", "1": "date", "2": "camera", "3": "both", "4": "strip_all"}
+        exif_mapping = {
+            "0": "keep",
+            "1": "date",
+            "2": "camera",
+            "3": "both",
+            "4": "strip_all",
+        }
         # Default to 'keep' if input is invalid or empty.
         user_choices["exif_option"] = exif_mapping.get(exif_val, "keep")
         logger.info(f"EXIF handling option set to: '{user_choices['exif_option']}'")
         if user_choices["exif_option"] in ["date", "camera", "both"]:
-             logger.info("Note: Partial EXIF stripping requires 'piexif' library.")
-
+            logger.info("Note: Partial EXIF stripping requires 'piexif' library.")
 
         # --- ZIP Generation ---
-        val_zip: str = input(f"\n{config.YELLOW}Generate ZIP archives for key output folders (Export, Optimized, Compressed)? [Y/n] (default: yes):{config.RESET} ").strip().lower()
-        user_choices["generate_zips"] = (val_zip != "n")
+        val_zip: str = (
+            input(
+                f"\n{config.YELLOW}Generate ZIP archives for key output folders (Export, Optimized, Compressed)? [Y/n] (default: yes):{config.RESET} "
+            )
+            .strip()
+            .lower()
+        )
+        user_choices["generate_zips"] = val_zip != "n"
         logger.info(f"Generate ZIP archives: {user_choices['generate_zips']}")
 
         # --- Return gathered choices ---
@@ -513,15 +659,17 @@ def ask_global_options() -> Dict[str, Union[bool, str]]:
     # --- Handle Keyboard Interrupt ---
     except KeyboardInterrupt:
         logger.warning("User interrupted global option gathering.")
-        raise # Re-raise for main handler
+        raise  # Re-raise for main handler
     except EOFError:
-         # Handle unexpected end-of-file
-        print(f"\n{config.RED}{config.PREFIX_ERROR}Input stream ended unexpectedly. Exiting.{config.RESET}")
+        # Handle unexpected end-of-file
+        print(
+            f"\n{config.RED}{config.PREFIX_ERROR}Input stream ended unexpectedly. Exiting.{config.RESET}"
+        )
         logger.error("EOFError encountered during global options prompt.")
         exit(1)
 
 
-def ask_shoot_specific_options(shoot_folder: Path) -> Dict[str, Any]:
+def ask_shoot_specific_options(shoot_folder: Path) -> dict:
     """
     Asks the user interactively for options specific to a single shoot, such as
     its display name, the base name for renamed files, and the parent directory
@@ -536,7 +684,7 @@ def ask_shoot_specific_options(shoot_folder: Path) -> Dict[str, Any]:
                              and the default output parent location.
 
     Returns:
-        Dict[str, Any]: A dictionary containing the shoot-specific configuration.
+        dict: A dictionary containing the shoot-specific configuration.
             Keys: 'shoot_name' (str), 'base_name' (str),
                   'output_parent' (Path), 'source_path' (Path).
 
@@ -544,31 +692,35 @@ def ask_shoot_specific_options(shoot_folder: Path) -> Dict[str, Any]:
         KeyboardInterrupt: If the user presses Ctrl+C during any prompt.
     """
     # Initialize dictionary to store shoot-specific data.
-    shoot_data: Dict[str, Any] = {}
-    print(f"\n{config.BOLD}--- Configuring Shoot Options for Source: '{shoot_folder.name}' ---{config.RESET}")
+    shoot_data = {}
+    print(
+        f"\n{config.BOLD}--- Configuring Shoot Options for Source: '{shoot_folder.name}' ---{config.RESET}"
+    )
 
     try:
         # --- Get Shoot Name ---
         # Suggest the shoot name based on the source folder's name. Validate input.
         shoot_data["shoot_name"] = get_valid_name(
             prompt="Enter a name for this shoot (used for the main output folder name)",
-            default=shoot_folder.name # Use source folder name as default
+            default=shoot_folder.name,  # Use source folder name as default
         )
 
         # --- Get Base Name for Files ---
         # Suggest the base name based on the (potentially modified) shoot name. Validate input.
         shoot_data["base_name"] = get_valid_name(
             prompt="Enter a base name for sequentially renamed files (e.g., 001-BaseName.jpg)",
-            default=shoot_data["shoot_name"] # Use the chosen shoot name as default
+            default=shoot_data["shoot_name"],  # Use the chosen shoot name as default
         )
 
         # --- Get Output Parent Directory ---
         # Determine the default output parent directory (typically the parent of the source shoot folder).
         # Handle edge case where the source might be a root directory (e.g., C:\).
-        default_parent: Path = shoot_folder.parent if shoot_folder.parent != shoot_folder else Path.cwd()
+        default_parent: Path = (
+            shoot_folder.parent if shoot_folder.parent != shoot_folder else Path.cwd()
+        )
         shoot_data["output_parent"] = get_valid_folder_path_input(
             prompt=f"Enter the PARENT directory to save the '{shoot_data['shoot_name']}' output folder inside",
-            default=default_parent # Default to parent of source, or CWD if source is root.
+            default=default_parent,  # Default to parent of source, or CWD if source is root.
         )
 
         # --- Store Original Source Path ---
@@ -576,24 +728,33 @@ def ask_shoot_specific_options(shoot_folder: Path) -> Dict[str, Any]:
         shoot_data["source_path"] = shoot_folder
 
         # Log the gathered configuration for this specific shoot.
-        logger.info(f"Configuration gathered for shoot '{shoot_data['shoot_name']}': "
-                    f"Output Parent='{shoot_data['output_parent']}', File Base Name='{shoot_data['base_name']}'")
+        logger.info(
+            f"Configuration gathered for shoot '{shoot_data['shoot_name']}': "
+            f"Output Parent='{shoot_data['output_parent']}', File Base Name='{shoot_data['base_name']}'"
+        )
         return shoot_data
 
     # --- Handle Keyboard Interrupt ---
     except KeyboardInterrupt:
-        logger.warning(f"User interrupted configuration for shoot '{shoot_folder.name}'.")
-        raise # Re-raise for main handler
+        logger.warning(
+            f"User interrupted configuration for shoot '{shoot_folder.name}'."
+        )
+        raise  # Re-raise for main handler
     except EOFError:
-         # Handle unexpected end-of-file
-        print(f"\n{config.RED}{config.PREFIX_ERROR}Input stream ended unexpectedly. Exiting.{config.RESET}")
-        logger.error(f"EOFError encountered during shoot options prompt for '{shoot_folder.name}'.")
+        # Handle unexpected end-of-file
+        print(
+            f"\n{config.RED}{config.PREFIX_ERROR}Input stream ended unexpectedly. Exiting.{config.RESET}"
+        )
+        logger.error(
+            f"EOFError encountered during shoot options prompt for '{shoot_folder.name}'."
+        )
         exit(1)
 
 
 # ----------------------------------------
 # --- Argument Parser Setup ---
 # ----------------------------------------
+
 
 def setup_arg_parser() -> argparse.ArgumentParser:
     """
@@ -618,111 +779,129 @@ def setup_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=f"{config.BOLD}{config.TOOL_DISPLAY_NAME}:{config.RESET} Organize, process, and package photo shoots.",
         formatter_class=argparse.RawTextHelpFormatter,
-        usage=f"python main.py [--source <path>] [--output <path>] [options]" # Basic usage example
+        usage=f"python main.py [--source <path>] [--output <path>] [options]",  # Basic usage example
     )
 
     # --- Argument Group: Input/Output ---
     # Group related arguments together for better --help output readability.
     io_group = parser.add_argument_group(
-        f'{config.YELLOW}Input/Output Options{config.RESET}',
-        'Control source locations and where results are saved.'
+        f"{config.YELLOW}Input/Output Options{config.RESET}",
+        "Control source locations and where results are saved.",
     )
     io_group.add_argument(
-        "--source", type=str,
-        metavar="<path>", # Indicate that a value (path) is expected
+        "--source",
+        type=str,
+        metavar="<path>",  # Indicate that a value (path) is expected
         help="REQUIRED (if not interactive): Path to the source folder containing:\n"
-             " - Images for a single shoot (use with --mode single or let it auto-detect).\n"
-             " - Subfolders, each containing images for a separate shoot (use with --mode multi)."
-             # Rationale: Clearly state when this is mandatory.
+        " - Images for a single shoot (use with --mode single or let it auto-detect).\n"
+        " - Subfolders, each containing images for a separate shoot (use with --mode multi).",
+        # Rationale: Clearly state when this is mandatory.
     )
     io_group.add_argument(
-        "--mode", choices=['single', 'multi'],
+        "--mode",
+        choices=["single", "multi"],
         help="Explicitly set processing mode:\n"
-             " 'single': Source path contains images for one shoot.\n"
-             " 'multi': Source path contains subfolders, each being a shoot.\n"
-             " (If omitted, script will ask interactively based on source path)."
+        " 'single': Source path contains images for one shoot.\n"
+        " 'multi': Source path contains subfolders, each being a shoot.\n"
+        " (If omitted, script will ask interactively based on source path).",
     )
     io_group.add_argument(
-        "--output", type=str,
+        "--output",
+        type=str,
         metavar="<path>",
         help="Path to the PARENT directory where final shoot output folder(s) will be created.\n"
-             "(If omitted, defaults to the parent directory of the source folder/shoot subfolder)."
+        "(If omitted, defaults to the parent directory of the source folder/shoot subfolder).",
     )
 
     # --- Argument Group: Processing Options ---
     proc_group = parser.add_argument_group(
-        f'{config.YELLOW}Processing Options{config.RESET}',
-        'Control image formats, quality, original file handling, and EXIF data.'
+        f"{config.YELLOW}Processing Options{config.RESET}",
+        "Control image formats, quality, original file handling, and EXIF data.",
     )
     # Rationale: Use action='store_true' for boolean flags that default to False.
     proc_group.add_argument(
-        "--move", action="store_true",
+        "--move",
+        action="store_true",
         # CRITICAL: Use RED and BOLD from config for high-visibility warning in help text.
         help=f"{config.RED}{config.BOLD}USE WITH EXTREME CAUTION:{config.RESET} {config.RED}PERMANENTLY MOVE{config.RESET} original source files to the\n"
-             f"'{config.FOLDER_NAMES['export_originals']}' folder instead of copying. Ensure backups exist."
+        f"'{config.FOLDER_NAMES['export_originals']}' folder instead of copying. Ensure backups exist.",
     )
     # Rationale: Make --skip-export explicit to match interactive 'n' option.
     proc_group.add_argument(
-        "--skip-export", action="store_true",
-        help=f"Skip creating the '{config.FOLDER_NAMES['export']}' structure entirely (no copy/move/leave of originals)."
+        "--skip-export",
+        action="store_true",
+        help=f"Skip creating the '{config.FOLDER_NAMES['export']}' structure entirely (no copy/move/leave of originals).",
     )
     # Use choices to restrict valid inputs for --exif. State default explicitly.
     proc_group.add_argument(
-        "--exif", choices=['keep', 'date', 'camera', 'both', 'strip_all'],
-        default="keep", # Explicitly state default matches interactive
+        "--exif",
+        choices=["keep", "date", "camera", "both", "strip_all"],
+        default="keep",  # Explicitly state default matches interactive
         help="Control how EXIF metadata is handled in generated files:\n"
-             " 'keep': Retain all original EXIF data (default).\n"
-             " 'date': Remove only date/time tags.\n"
-             " 'camera': Remove only camera make/model tags.\n"
-             " 'both': Remove both date and camera tags.\n"
-             " 'strip_all': Remove ALL EXIF data.\n"
-             " (Options 'date', 'camera', 'both' require the optional 'piexif' library)."
+        " 'keep': Retain all original EXIF data (default).\n"
+        " 'date': Remove only date/time tags.\n"
+        " 'camera': Remove only camera make/model tags.\n"
+        " 'both': Remove both date and camera tags.\n"
+        " 'strip_all': Remove ALL EXIF data.\n"
+        " (Options 'date', 'camera', 'both' require the optional 'piexif' library).",
     )
     proc_group.add_argument(
-        "--no-jpg", action="store_true",
-        help="Disable generation of JPG format output files (Optimized/Compressed)."
+        "--no-jpg",
+        action="store_true",
+        help="Disable generation of JPG format output files (Optimized/Compressed).",
     )
     proc_group.add_argument(
-        "--no-webp", action="store_true",
-        help="Disable generation of WebP format output files (Optimized/Compressed)."
+        "--no-webp",
+        action="store_true",
+        help="Disable generation of WebP format output files (Optimized/Compressed).",
     )
     proc_group.add_argument(
-        "--skip-compressed", action="store_true",
+        "--skip-compressed",
+        action="store_true",
         # Dynamically include target resolution and folder name from config.
         help=f"Skip generation of '{config.FOLDER_NAMES['compressed']}' "
-             f"(~{config.COMPRESSED_TARGET_PIXELS/1e6:.1f}MP web-friendly) image sets."
+        f"(~{config.COMPRESSED_TARGET_PIXELS/1e6:.1f}MP web-friendly) image sets.",
     )
     proc_group.add_argument(
-        "--no-zip", action="store_true",
-        help="Disable final creation of ZIP archives for output folders."
+        "--no-zip",
+        action="store_true",
+        help="Disable final creation of ZIP archives for output folders.",
     )
 
     # --- Argument Group: Runtime Control ---
     runtime_group = parser.add_argument_group(
-        f'{config.YELLOW}Runtime Control{config.RESET}',
-        'Control execution behavior like parallelism, logging, and simulation.'
+        f"{config.YELLOW}Runtime Control{config.RESET}",
+        "Control execution behavior like parallelism, logging, and simulation.",
     )
     # Ensure type is int, provide default from config, add metavar for clarity.
     runtime_group.add_argument(
-        "--workers", type=int,
+        "--workers",
+        type=int,
         default=config.DEFAULT_WORKERS,
         metavar="<N>",
         help="Number of parallel worker processes for image processing.\n"
-             f"(Default: {config.DEFAULT_WORKERS}, typically based on system CPU cores). Use 1 for serial processing."
+        f"(Default: {config.DEFAULT_WORKERS}, typically based on system CPU cores). Use 1 for serial processing.",
     )
     # Standard verbose flag.
     runtime_group.add_argument(
-        "--verbose", "-v", action="store_true",
-        help="Enable detailed DEBUG level logging to console and log file(s)."
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable detailed DEBUG level logging to console and log file(s).",
     )
     # CRITICAL: Dry run flag. Explain its purpose clearly.
     runtime_group.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help=f"{config.BOLD}Simulate the entire process without creating folders or modifying/saving any files.{config.RESET}\n"
-             f"Logs intended actions with '{config.PREFIX_DRYRUN}' prefix. HIGHLY RECOMMENDED FOR TESTING."
+        f"Logs intended actions with '{config.PREFIX_DRYRUN}' prefix. HIGHLY RECOMMENDED FOR TESTING.",
     )
 
     logger.debug("Argument parser setup complete.")
     return parser
 
-# --- END: ui.py (Rewritten from Scratch) ---
+
+# All CLI input functions have been removed. This module is now a stub for GUI integration.
+# Any reusable helpers should be moved to utils.py or job.py as needed.
+
+# --- END: ui.py (Modernized for GUI) ---

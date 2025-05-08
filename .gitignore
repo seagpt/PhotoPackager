@@ -81,3 +81,12 @@ secrets.yml
 # Add any other project-specific files/folders to ignore below
 # e.g., large data files, temporary output directories not meant for commit
 .bootstrap_cache
+*_Packaged_V*/
+debug_log.txt
+
+# --- Cascade Project Cleanup Additions ---
+# Diagnostic/minimal test
+minimal_thread_test.py
+minimal_thread_test.spec
+# PyInstaller spec files
+# PhotoPackager.spec
