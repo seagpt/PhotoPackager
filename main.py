@@ -8,8 +8,24 @@ All legacy CLI and interactive logic has been removed. For all user interactions
 import sys
 import os
 import logging
-import argparse
 import traceback
+from datetime import datetime
+
+# --- FORCE PILLOW PLUGINS FOR PYINSTALLER ---
+try:
+    import PIL
+    import PIL.Image
+    import PIL.JpegImagePlugin
+    import PIL.PngImagePlugin
+    import PIL.WebPImagePlugin
+    import PIL.BmpImagePlugin
+    import PIL.TiffImagePlugin
+    import PIL.ImageFilter
+    import PIL.ImageOps
+
+except ImportError as e:
+    print(f"[CRITICAL] Could not import Pillow plugin: {e}")
+
 from pathlib import Path
 from datetime import datetime
 
@@ -32,6 +48,25 @@ try:
         logger.info(f"Running as app bundle. Set working dir to: {bundle_parent}")
 except Exception as e:
     logger.error(f"Failed to set working directory: {e}")
+
+def pillow_self_test():
+    from PIL import Image
+    import sys
+    jpeg_ok = getattr(Image.core, 'jpeglib_version', None)
+    webp_ok = hasattr(Image, 'WEBP') or hasattr(Image.core, 'webp_decoder_version')
+    if not jpeg_ok or not webp_ok:
+        try:
+            from PySide6.QtWidgets import QApplication, QMessageBox
+            app = QApplication(sys.argv)
+            QMessageBox.critical(None, "Critical Error", (
+                "PhotoPackager cannot run: Pillow is missing JPEG or WebP support.\n\n"
+                "Please ensure all image plugins are included in your build."
+            ))
+        except Exception:
+            print("PhotoPackager cannot run: Pillow is missing JPEG or WebP support.")
+        sys.exit(1)
+
+pillow_self_test()
 
 if __name__ == "__main__":
     try:
@@ -124,6 +159,18 @@ if __name__ == "__main__":
             help="Disable final ZIP archive creation",
         )
         parser.add_argument(
+            "--no-raw",
+            action="store_false",
+            dest="include_raw",
+            help="Disable RAW file processing (don't include .arw, .cr2, etc. files)",
+        )
+        parser.add_argument(
+            "--add-prefixes",
+            action="store_true",
+            dest="add_prefix",
+            help="Add quality prefixes to files (RAW_, Original_, Optimized_, Compressed_)",
+        )
+        parser.add_argument(
             "--dry-run", action="store_true", help="Simulate actions without writing files"
         )
         parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
@@ -153,6 +200,9 @@ if __name__ == "__main__":
                     delivery_company_name=args.delivery_company,
                     delivery_website=args.delivery_website,
                     delivery_support_email=args.delivery_email,
+                    # New options
+                    include_raw=(args.include_raw if hasattr(args, "include_raw") else config.DEFAULT_INCLUDE_RAW),
+                    add_prefix=(args.add_prefix if hasattr(args, "add_prefix") else config.DEFAULT_ADD_PREFIX),
                 )
                 job = PhotoPackagerJob(settings)
                 job.run()

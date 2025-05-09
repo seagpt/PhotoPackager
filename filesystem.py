@@ -14,6 +14,59 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+def scan_directory(source_dir: Path, include_raw: bool = True):
+    """
+    Scan a directory for standard images and RAW files.
+    
+    Args:
+        source_dir (Path): Directory to scan for image files
+        include_raw (bool): Whether to include RAW files in the scan
+        
+    Returns:
+        tuple: (standard_images, raw_images) - Lists of Path objects
+    """
+    if not source_dir.exists():
+        raise FileNotFoundError(f"Source directory does not exist: {source_dir}")
+        
+    standard_images = []
+    raw_images = []
+    
+    for file_path in source_dir.glob("**/*"):
+        if not file_path.is_file():
+            continue
+            
+        # Get lowercase extension for comparison
+        ext = file_path.suffix.lower()
+        
+        # Check file type
+        if ext in config.STANDARD_IMAGE_EXTENSIONS:
+            standard_images.append(file_path)
+        elif include_raw and ext in config.RAW_IMAGE_EXTENSIONS:
+            raw_images.append(file_path)
+    
+    logger.info(f"Found {len(standard_images)} standard images and {len(raw_images)} RAW files in {source_dir}")
+    return standard_images, raw_images
+
+
+def create_raw_readme(raw_folder: Path, dry_run: bool = False):
+    """
+    Create a README.txt file in the RAW folder explaining RAW files.
+    
+    Args:
+        raw_folder (Path): Path to the RAW folder
+        dry_run (bool): If True, simulate without creating files
+    """
+    readme_path = raw_folder / config.FOLDER_NAMES["raw_readme"]
+    
+    if dry_run:
+        logger.info(f"[DRYRUN] Would create RAW README at {readme_path}")
+        return
+        
+    logger.info(f"Creating RAW README at {readme_path}")
+    with open(readme_path, "w", encoding="utf-8") as f:
+        f.write(config.RAW_README_TEMPLATE)
+
+
 def _get_top_level_readme_content(
     shoot_name: str,
     delivery_company_name: str,
@@ -126,6 +179,8 @@ def create_output_structure(
     delivery_company_name: str,
     delivery_website: str,
     delivery_support_email: str,
+    has_raw_files: bool = False,
+    include_raw: bool = True,
     dry_run: bool = False
 ) -> Path:
     """
@@ -147,9 +202,9 @@ def create_output_structure(
     logger.info(
         f"{action_prefix}Planning output structure for '{shoot_name}' inside '{output_parent}'"
     )
+    # Start with top folder and standard structure
     folders_to_create: List[Path] = [
         top_folder,
-        top_folder / config.FOLDER_NAMES["raw"],
         top_folder
         / config.FOLDER_NAMES["export"]
         / config.FOLDER_NAMES["export_originals"],
@@ -166,6 +221,13 @@ def create_output_structure(
         / config.FOLDER_NAMES["compressed"]
         / config.FOLDER_NAMES["compressed_webp"],
     ]
+    
+    # Only add RAW folder if RAW files were found and user wants to include them
+    if has_raw_files and include_raw:
+        logger.info(f"{action_prefix} Including RAW folder in output structure")
+        folders_to_create.append(top_folder / config.FOLDER_NAMES["raw"])
+    else:
+        logger.info(f"{action_prefix} Skipping RAW folder creation (has_raw_files={has_raw_files}, include_raw={include_raw})")
     readme_path: Path = top_folder / config.FOLDER_NAMES["top_level_readme"]
     raw_readme_path: Path = (
         top_folder / config.FOLDER_NAMES["raw"] / config.FOLDER_NAMES["raw_readme"]
@@ -205,9 +267,20 @@ def create_output_structure(
             )
             readme_path.write_text(readme_content, encoding="utf-8")
             logger.debug(f"Created/Updated README: '{readme_path}'")
+        if include_raw:
+            raw_folder = top_folder / config.FOLDER_NAMES["raw"]
+            if not raw_folder.exists():
+                raw_folder.mkdir(parents=True, exist_ok=True)
+            # Always create the README, regardless of has_raw_files
+            raw_readme_path = raw_folder / config.FOLDER_NAMES["raw_readme"]
             raw_readme_content = _get_raw_readme_content()
-            raw_readme_path.write_text(raw_readme_content, encoding="utf-8")
-            logger.debug(f"Created/Updated README: '{raw_readme_path}'")
+            if dry_run:
+                logger.info(
+                    f"{config.PREFIX_DRYRUN}Would write RAW README to: '{raw_readme_path}'"
+                )
+            else:
+                raw_readme_path.write_text(raw_readme_content, encoding="utf-8")
+                logger.debug(f"Created/Updated README: '{raw_readme_path}'")
         logger.info(f"{action_prefix}Log file target path: '{log_file_path}'")
         logger.info(
             f"{config.PREFIX_DONE}Ensured output structure root at '{top_folder}'"

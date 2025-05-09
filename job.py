@@ -24,11 +24,18 @@ class PhotoPackagerSettings:
     skip_export: bool = False
     generate_jpg: bool = True
     generate_webp: bool = True
-    skip_compressed: bool = False
+    generate_compressed_jpg: bool = True
+    generate_compressed_webp: bool = True
+    skip_compressed: bool = False  # Legacy flag - maintained for backward compatibility
     create_zip: bool = True
     workers: int = 0  # 0 = auto (CPU count)
     dry_run: bool = False
     verbose: bool = False
+    # RAW file handling
+    include_raw: bool = True  # Whether to handle RAW files found in source folder
+    raw_action: str = "copy"  # How to handle RAW files: copy/move/leave
+    # File naming options
+    add_prefix: bool = False  # Whether to add prefixes like RAW_, Original_, etc.
     # Delivery branding fields (for README and client-facing output)
     delivery_company_name: str = ""
     delivery_website: str = ""
@@ -88,14 +95,19 @@ class PhotoPackagerJob:
         out.mkdir(parents=True, exist_ok=True)
         self._log(f"[DEBUG] dry_run={self.settings.dry_run}, workers={self.settings.workers}, output_base={out / src.name}, total_images={len(list(src.iterdir()))}")
 
-        # Gather images
-        image_files = filesystem.gather_image_files(src)
-        if not image_files:
-            self._log(f"[WARN] No images found in: {src}")
+        # Gather both standard images and RAW files
+        standard_images, raw_images = filesystem.scan_directory(src, include_raw=self.settings.include_raw)
+        image_files = standard_images
+        
+        if not standard_images and not raw_images:
+            self._log(f"[WARN] No image files found in: {src}")
             return
-        self._log(f"Found {len(image_files)} images to process.")
-        if len(image_files) == 0:
-            self._log("[ERROR] No images found to process. Exiting job early.")
+            
+        self._log(f"Found {len(standard_images)} standard images and {len(raw_images)} RAW files to process.")
+        
+        if len(standard_images) == 0 and len(raw_images) == 0:
+            self._log("[ERROR] No files found to process. Exiting job early.")
+            return
 
         # Prepare output structure
         shoot_name = src.name
@@ -105,6 +117,8 @@ class PhotoPackagerJob:
             self.settings.delivery_company_name,
             self.settings.delivery_website,
             self.settings.delivery_support_email,
+            has_raw_files=bool(raw_images),  # Only create RAW folder if RAW files found
+            include_raw=self.settings.include_raw,  # Only if user wants to include RAW files
             dry_run=self.settings.dry_run
         )
         output_base = out / shoot_name
@@ -115,10 +129,14 @@ class PhotoPackagerJob:
             "skip_export": self.settings.skip_export,
             "generate_jpg": self.settings.generate_jpg,
             "generate_webp": self.settings.generate_webp,
+            "generate_compressed_jpg": self.settings.generate_compressed_jpg,
+            "generate_compressed_webp": self.settings.generate_compressed_webp,
             "skip_compressed": self.settings.skip_compressed,
             "exif_option": self.settings.exif_policy,
             "dry_run": self.settings.dry_run,
         }
+        import logging
+        logging.getLogger(__name__).info(f"DIAGNOSTIC: Job global_choices: {global_choices}")
 
         # Parallel or serial processing
         workers = self.settings.workers or getattr(
@@ -193,52 +211,84 @@ class PhotoPackagerJob:
         # --- Handle Export Originals logic ---
         originals_action = getattr(self.settings, 'originals_action', 'copy')
         export_originals_path = output_base / config.FOLDER_NAMES["export_originals"]
-        logging.debug(f"Checking dry_run before handling originals: {self.settings.dry_run}")
-        if originals_action in ["copy", "move"]:
-            if self.settings.dry_run:
-                self._log(f"[DRYRUN] Would {originals_action} originals to: {export_originals_path}")
-            else:
-                self._log(f"{originals_action.capitalize()}ing originals to: {export_originals_path}")
-                original_files = [f for f in src.iterdir() if f.is_file()]
-                for src_path in original_files:
-                    dest_path = export_originals_path / src_path.name
-                    logging.debug(f"Attempting to {originals_action} original from {src_path} to {dest_path}")
-                    try:
-                        if originals_action == "copy":
-                            logging.info(f"Attempting copy of {src_path} to {dest_path}...")
-                            copied_path = shutil.copy2(src_path, dest_path)
-                            logging.info(f"shutil.copy2 returned: {copied_path}")
-                            if Path(dest_path).exists():
-                                logging.info(f"VERIFIED: Destination file exists: {dest_path}")
-                            else:
-                                logging.error(f"VERIFICATION FAILED: Destination file NOT found after copy attempt: {dest_path}")
-                            logging.info(f"Successfully copied {src_path} to {dest_path}.")
-                            self._log(f"Copied: {src_path} -> {dest_path}")
-                        elif originals_action == "move":
-                            logging.info(f"Attempting move of {src_path} to {dest_path}...")
-                            moved_path = shutil.move(src_path, dest_path)
-                            logging.info(f"shutil.move returned: {moved_path}")
-                            if Path(dest_path).exists():
-                                logging.info(f"VERIFIED: Destination file exists: {dest_path}")
-                            else:
-                                logging.error(f"VERIFICATION FAILED: Destination file NOT found after move attempt: {dest_path}")
-                            logging.info(f"Successfully moved {src_path} to {dest_path}.")
-                            self._log(f"Moved: {src_path} -> {dest_path}")
-                    except Exception:
-                        logging.exception(f"ERROR {originals_action}ing original file:")
+        
+        # Process standard images
+        if self.settings.skip_export:
+            self._log("Skipping export of originals (--skip-export)")
+        elif originals_action in ["copy", "move"]:
+            # Process standard images first
+            self._log(f"Processing {len(standard_images)} standard images...")
+            
+            for idx, img_path in enumerate(standard_images):
+                # Calculate progress for standard images
+                total_files = len(standard_images) + (len(raw_images) if self.settings.include_raw else 0)
+                self._progress(idx / total_files * 0.25)  # First 25% of progress
+                
+                # Get original filename or add prefix if requested
+                img_name = img_path.name
+                if self.settings.add_prefix:
+                    img_name = config.FILE_PREFIXES["original"] + img_name
+                    
+                target_path = export_originals_path / img_name
+                
+                if self.settings.dry_run:
+                    self._log(f"[DRYRUN] Would {originals_action} {img_path.name} to exports folder as {img_name}")
+                else:
+                    if originals_action == "move":
+                        shutil.move(img_path, target_path)
+                        self._log(f"Moved original: {img_path.name} → {img_name}")
+                    else:  # copy
+                        shutil.copy2(img_path, target_path)
+                        self._log(f"Copied original: {img_path.name} → {img_name}")
+
+        # Process RAW files if found and enabled
+        if raw_images and self.settings.include_raw:
+            self._log(f"Processing {len(raw_images)} RAW files...")
+
+            # Only create RAW folder and README if action is not 'leave'
+            raw_action = getattr(self.settings, 'raw_action', 'copy')
+            raw_folder_path = output_base / config.FOLDER_NAMES["raw"]
+            if raw_action in ["copy", "move"]:
+                if not self.settings.dry_run:
+                    raw_folder_path.mkdir(exist_ok=True, parents=True)
+                    # Create RAW README if not present
+                    import filesystem
+                    filesystem.create_raw_readme(raw_folder_path, dry_run=self.settings.dry_run)
+
+            for idx, raw_path in enumerate(raw_images):
+                # Continue progress calculation from where standard images left off
+                progress_base = 0.25 * (len(standard_images) / total_files) if standard_images else 0
+                progress_increment = 0.25 / len(raw_images)
+                self._progress(progress_base + idx * progress_increment)
+
+                # Get original filename or add prefix if requested
+                raw_name = raw_path.name
+                if self.settings.add_prefix:
+                    raw_name = config.FILE_PREFIXES["raw"] + raw_name
+
+                target_path = raw_folder_path / raw_name
+
+                # Skip file operations if 'leave' is selected
+                if raw_action == "leave":
+                    self._log(f"Leaving RAW file: {raw_path.name} in original location")
+                    continue
+
+                if self.settings.dry_run:
+                    self._log(f"[DRYRUN] Would {raw_action} {raw_path.name} to RAW folder as {raw_name}")
+                else:
+                    if raw_action == "move":
+                        shutil.move(raw_path, target_path)
+                        self._log(f"Moved RAW file: {raw_path.name} → {raw_name}")
+                    else:  # copy
+                        shutil.copy2(raw_path, target_path)
+                        self._log(f"Copied RAW file: {raw_path.name} → {raw_name}")
 
         # Optionally create ZIPs for all main outputs
         if self.settings.create_zip and not self.settings.dry_run:
             zip_targets = [
                 (export_originals_path, output_base / "Export Originals.zip"),
-                (
-                    output_base / config.FOLDER_NAMES["optimized"],
-                    output_base / "Optimized Files.zip",
-                ),
-                (
-                    output_base / config.FOLDER_NAMES["compressed"],
-                    output_base / "Compressed Files.zip",
-                ),
+                (output_base / config.FOLDER_NAMES["optimized"], output_base / "Optimized Files.zip"),
+                (output_base / config.FOLDER_NAMES["compressed"], output_base / "Compressed Files.zip"),
             ]
             for folder, zip_path in zip_targets:
                 if folder.exists():
@@ -246,18 +296,13 @@ class PhotoPackagerJob:
                     if ok:
                         self._log(f"Created ZIP archive: {zip_path}")
                     else:
-                        self._log(
-                            f"[WARN] ZIP archive not created or failed: {zip_path}"
-                        )
+                        self._log(f"[WARN] ZIP archive not created or failed: {zip_path}")
                 else:
-                    self._log(
-                        f"[SKIP] ZIP not created, folder does not exist: {folder}"
-                    )
-
+                    self._log(f"[SKIP] ZIP not created, folder does not exist: {folder}")
         self._progress(1.0)
         self._log("PhotoPackager job complete.")
 
-    @staticmethod
+
     def process_and_report(img_path, worker_args):
         """
         Worker function for parallel image processing. Handles error reporting.

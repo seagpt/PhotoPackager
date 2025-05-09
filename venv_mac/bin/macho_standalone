@@ -1,5 +1,5 @@
 #!/bin/sh
-'''exec' "/Volumes/DUAL DRIVE/Development/My Projects/PhotoPackager/venv_mac/bin/python3.12" "$0" "$@"
+'''exec' "/Volumes/DUAL DRIVE/Development/My Projects/PhotoPackager/venv_mac/bin/python3" "$0" "$@"
 ' '''
 # -*- coding: utf-8 -*-
 import re

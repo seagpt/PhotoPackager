@@ -282,6 +282,21 @@ def process_image(
     except Exception as log_e:
         print(f"[ERROR] Failed to write to log: {log_e}")
     
+    # Add extensive debug output to help diagnose issues
+    logger.info("=" * 50)
+    logger.info(f"DIAGNOSTIC: Processing image: {file_path}")
+    logger.info(f"DIAGNOSTIC: Output base folder: {output_base_folder}")
+    logger.info("DIAGNOSTIC: Settings (global_choices):")
+    for key, value in global_choices.items():
+        logger.info(f"  - {key}: {value}")
+    logger.info(f"DIAGNOSTIC: generate_jpg: {global_choices.get('generate_jpg', False)}")
+    logger.info(f"DIAGNOSTIC: generate_webp: {global_choices.get('generate_webp', False)}")
+    logger.info(f"DIAGNOSTIC: generate_compressed_jpg: {global_choices.get('generate_compressed_jpg', False)}")
+    logger.info(f"DIAGNOSTIC: generate_compressed_webp: {global_choices.get('generate_compressed_webp', False)}")
+    logger.info(f"DIAGNOSTIC: dry_run: {dry_run}")
+    # Confirm fix for user
+    logger.info("DIAGNOSTIC: If generate_compressed_jpg or generate_compressed_webp are True, the corresponding images should be created!")
+
     # --- Configuration Validation ---
     logger.info(f"Processing '{file_path.name}': " 
               f"JPG={'Yes' if global_choices.get('generate_jpg', True) else 'No'}, "
@@ -292,9 +307,7 @@ def process_image(
         logger.warning(f"No output formats enabled for '{file_path.name}'. Skipping processing.")
         return
     
-    # --- Prepare output paths ---
-    output_file_stem = file_path.stem  # Base filename without extension
-    
+    # ... (rest of the code remains the same)
     # Get subfolder paths from config
     try:
         opt_folder_jpg = output_base_folder / config.FOLDER_NAMES["optimized"] / config.FOLDER_NAMES["optimized_jpg"]
@@ -305,6 +318,9 @@ def process_image(
         logger.error(f"Config error when building output paths: {e}. Cannot continue processing.")
         return
     
+    # --- Define output_file_stem for output filenames ---
+    output_file_stem = file_path.stem
+
     # --- Image Loading Phase ---
     try:
         with Image.open(file_path) as img:
@@ -438,6 +454,13 @@ def process_image(
                                 f"'{opt_jpg_path}'. Error: {e_save_opt_jpg}",
                                 exc_info=True
                             )
+                            try:
+                                from PySide6.QtWidgets import QApplication, QMessageBox
+                                import sys
+                                app = QApplication.instance() or QApplication(sys.argv)
+                                QMessageBox.critical(None, "Image Save Error", f"Failed to save Optimized JPG for '{file_path.name}'. Pillow may be missing JPEG support.\n\nError: {e_save_opt_jpg}")
+                            except Exception:
+                                pass
                 else:
                     logger.warning(
                         f"Skipping Optimized JPG for '{file_path.name}' because RGB conversion failed earlier."
@@ -477,7 +500,15 @@ def process_image(
                         )
             
             # --- Generate Compressed versions if not disabled ---
-            if not global_choices.get("skip_compressed", False):
+            # First check if either compressed format is enabled
+            generate_compressed_jpg = global_choices.get("generate_compressed_jpg", True)
+            generate_compressed_webp = global_choices.get("generate_compressed_webp", True)
+            # Legacy flag support
+            if global_choices.get("skip_compressed", False):
+                generate_compressed_jpg = False
+                generate_compressed_webp = False
+                
+            if generate_compressed_jpg or generate_compressed_webp:
                 logger.debug(f"{action_prefix}Processing Compressed versions...")
                 
                 # Calculate target dimensions while maintaining aspect ratio
@@ -513,7 +544,7 @@ def process_image(
                 logger.debug(f"Compressed quality set to {comp_quality} (base: {config.COMPRESSED_QUALITY_BASE})")
                 
                 # --- Save Compressed JPG ---
-                if global_choices.get("generate_jpg", True):
+                if generate_compressed_jpg:
                     # Prepare JPEG version of the resized image
                     if has_alpha:
                         try:
@@ -564,9 +595,16 @@ def process_image(
                                     f"{config.PREFIX_ERROR}Failed to save Compressed JPG for '{file_path.name}': {e_save_comp_jpg}",
                                     exc_info=True
                                 )
+                                try:
+                                    from PySide6.QtWidgets import QApplication, QMessageBox
+                                    import sys
+                                    app = QApplication.instance() or QApplication(sys.argv)
+                                    QMessageBox.critical(None, "Image Save Error", f"Failed to save Compressed JPG for '{file_path.name}'. Pillow may be missing JPEG support.\n\nError: {e_save_comp_jpg}")
+                                except Exception:
+                                    pass
                 
                 # --- Save Compressed WebP ---
-                if global_choices.get("generate_webp", True):
+                if generate_compressed_webp:
                     comp_webp_path = comp_folder_webp / f"{output_file_stem}.webp"
                     logger.debug(f"{action_prefix}Target path for Compressed WebP: '{comp_webp_path}'")
                     
@@ -600,6 +638,13 @@ def process_image(
                                 f"{config.PREFIX_ERROR}Failed to save Compressed WebP: {e_save_comp_webp}",
                                 exc_info=True
                             )
+                            try:
+                                from PySide6.QtWidgets import QApplication, QMessageBox
+                                import sys
+                                app = QApplication.instance() or QApplication(sys.argv)
+                                QMessageBox.critical(None, "Image Save Error", f"Failed to save Compressed WebP for '{file_path.name}'. Pillow may be missing WebP support.\n\nError: {e_save_comp_webp}")
+                            except Exception:
+                                pass
             else:
                 logger.debug(f"Skipping Compressed file generation as per configuration.")
             
