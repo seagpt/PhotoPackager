@@ -83,10 +83,16 @@ secrets.yml
 .bootstrap_cache
 *_Packaged_V*/
 debug_log.txt
+PhotoPackager_GUI.dmg
+PhotoPackager_GUI.dmg.zip
+rw.*.dmg
+PhotoPackager.iconset/
+dmg_temp/
+tests/out/
 
 # --- Cascade Project Cleanup Additions ---
 # Diagnostic/minimal test
 minimal_thread_test.py
-minimal_thread_test.spec
+# minimal_thread_test.spec # This was likely for a specific test file, can remain commented or be removed if that test is gone
 # PyInstaller spec files
-# PhotoPackager.spec
+*.spec

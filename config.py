@@ -50,8 +50,15 @@ FOLDER_NAMES = {
     "raw": "RAW Files",
     "raw_readme": "README.txt",
 
-    "export": "Export Originals",  # Added to fix KeyError in filesystem.py
-    "export_originals": "Export Originals",
+    "originals": "Export Originals", # Directory for original, unprocessed images (if copied/moved)
+    "export": "Delivery Export",      # Top-level folder for primary deliverable processed files (e.g., JPEGs for client)
+                                      # This might be redundant if 'Optimized Files' serves this purpose, or can be a parent.
+                                      # For now, let's assume 'Optimized Files' is the primary client deliverable.
+    "export_files": "User Export JPEGs", # Specific sub-folder for user-exported JPEGs (from GUI or a specific process)
+                                     # This was previously ambiguous. Clarifying its potential role.
+                                     # If this isn't used by current job.py logic for standard exports, it can be removed or repurposed.
+                                     # The test failure relates to 'Export Originals'.
+
     "optimized": "Optimized Files",
     "optimized_jpg": "Optimized JPGs",
     "optimized_webp": "Optimized WebPs",
@@ -91,16 +98,16 @@ DEFAULT_GENERATE_COMPRESSED_JPG: bool = True
 DEFAULT_GENERATE_COMPRESSED_WEBP: bool = True
 # Legacy flag maintained for backward compatibility
 DEFAULT_GENERATE_LOW_QUALITY: bool = True
-DEFAULT_ORIGINAL_ACTION: str = "copy"  # copy/move/leave
-DEFAULT_RAW_ACTION: str = "copy"     # copy/move/leave
-DEFAULT_EXIF_OPTION: str = "keep"    # keep/strip_all
+DEFAULT_ORIGINAL_ACTION: str = "copy"
+DEFAULT_RAW_ACTION: str = "copy"
+DEFAULT_EXIF_OPTION: str = "keep"
 DEFAULT_GENERATE_ZIPS: bool = True
 
-DEFAULT_WORKERS: int = os.cpu_count() or 1
+DEFAULT_WORKERS: int = 5
 
 # New default options
 DEFAULT_INCLUDE_RAW: bool = True
-DEFAULT_ADD_PREFIX: bool = False
+DEFAULT_ADD_PREFIX: bool = True
 
 # Template for RAW readme
 RAW_README_TEMPLATE: str = """

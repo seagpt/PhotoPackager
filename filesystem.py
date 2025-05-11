@@ -4,14 +4,15 @@
 import zipfile
 import logging
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Optional
+from job import PhotoPackagerSettings
 
 try:
     import config
 except ImportError:
     raise ImportError("Critical: config.py is missing. The application cannot run.")
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(f"PhotoPackager.{__name__}")
 
 
 def scan_directory(source_dir: Path, include_raw: bool = True):
@@ -99,7 +100,7 @@ Folder Structure Explained:
     * RAW files offer maximum editing flexibility but are very large.
     * *Access to RAW files is typically a premium service.* If this folder is empty, RAWs may not have been included in your package or require separate arrangements. Please see the README inside this folder for contact details if needed.
 
-2.  **{config.FOLDER_NAMES['export']}/{config.FOLDER_NAMES['export_originals']}/**
+2.  **{config.FOLDER_NAMES['export']}/{config.FOLDER_NAMES['export_files']}/**
     * Contains high-resolution copies (or the originals, if moved during processing) of your source images.
     * These are suitable for archival, large prints, or further detailed editing. Quality is preserved.
 
@@ -174,127 +175,150 @@ Thank you,
 
 
 def create_output_structure(
-    shoot_name: str,
     output_parent: Path,
-    delivery_company_name: str,
-    delivery_website: str,
-    delivery_support_email: str,
-    has_raw_files: bool = False,
-    include_raw: bool = True,
-    dry_run: bool = False
-) -> Path:
+    settings: PhotoPackagerSettings,
+    has_raw_files: bool = False
+) -> Dict[str, Optional[Path]]:
     """
     Create the full output directory structure for a photo shoot delivery, including
-    all subfolders and README files.
+    all subfolders and README files, based on settings.
 
     Args:
-        shoot_name (str): Name of the shoot/project.
-        output_parent (Path): Parent directory for the output structure.
-        dry_run (bool): If True, simulate actions without making changes.
+        output_parent (Path): Parent directory where the shoot's main output folder will be created.
+        settings (PhotoPackagerSettings): The job settings, dictating which folders are created.
+        has_raw_files (bool): Indicates if RAW files were found in the source.
+
     Returns:
-        Path: Path to the root of the created output structure.
+        Dict[str, Optional[Path]]: A dictionary mapping key folder types to their Path objects.
+                                   'originals_dir' will be None if not applicable.
     Raises:
         OSError: If directory creation fails.
         Exception: For unexpected errors.
     """
-    top_folder: Path = output_parent / shoot_name
-    action_prefix: str = config.PREFIX_DRYRUN if dry_run else "[SETUP]"
-    logger.info(
-        f"{action_prefix}Planning output structure for '{shoot_name}' inside '{output_parent}'"
-    )
-    # Start with top folder and standard structure
-    folders_to_create: List[Path] = [
-        top_folder,
-        top_folder
-        / config.FOLDER_NAMES["export"]
-        / config.FOLDER_NAMES["export_originals"],
-        top_folder
-        / config.FOLDER_NAMES["optimized"]
-        / config.FOLDER_NAMES["optimized_jpg"],
-        top_folder
-        / config.FOLDER_NAMES["optimized"]
-        / config.FOLDER_NAMES["optimized_webp"],
-        top_folder
-        / config.FOLDER_NAMES["compressed"]
-        / config.FOLDER_NAMES["compressed_jpg"],
-        top_folder
-        / config.FOLDER_NAMES["compressed"]
-        / config.FOLDER_NAMES["compressed_webp"],
-    ]
-    
-    # Only add RAW folder if RAW files were found and user wants to include them
-    if has_raw_files and include_raw:
-        logger.info(f"{action_prefix} Including RAW folder in output structure")
-        folders_to_create.append(top_folder / config.FOLDER_NAMES["raw"])
+    # Determine shoot_name: prioritize settings.shoot_name, fallback to source_folder name
+    if settings.shoot_name and settings.shoot_name.strip():
+        shoot_name_to_use = settings.shoot_name.strip()
     else:
-        logger.info(f"{action_prefix} Skipping RAW folder creation (has_raw_files={has_raw_files}, include_raw={include_raw})")
-    readme_path: Path = top_folder / config.FOLDER_NAMES["top_level_readme"]
-    raw_readme_path: Path = (
-        top_folder / config.FOLDER_NAMES["raw"] / config.FOLDER_NAMES["raw_readme"]
+        shoot_name_to_use = Path(settings.source_folder).name
+    
+    top_folder: Path = output_parent / shoot_name_to_use
+    action_prefix: str = config.PREFIX_DRYRUN if settings.dry_run else "[SETUP]"
+    logger.info(
+        f"{action_prefix}Planning output structure for '{shoot_name_to_use}' inside '{output_parent}' based on settings."
     )
-    log_file_path: Path = top_folder / config.FOLDER_NAMES["log_file"]
+
+    created_paths: Dict[str, Optional[Path]] = {
+        "top_level_dir": top_folder,
+        "optimized_jpg_dir": None,
+        "optimized_webp_dir": None,
+        "compressed_jpg_dir": None,
+        "compressed_webp_dir": None,
+        "originals_dir": None,
+        "raw_dir": None,
+        "log_file_path": top_folder / config.FOLDER_NAMES["log_file"]
+    }
+
+    folders_to_create_conditionally: List[Path] = []
+
+    # Always create the top_folder
+    folders_to_create_conditionally.append(top_folder)
+
+    # Optimized folders (if JPG or WebP generated)
+    if settings.generate_jpg:
+        path = top_folder / config.FOLDER_NAMES["optimized"] / config.FOLDER_NAMES["optimized_jpg"]
+        folders_to_create_conditionally.append(path)
+        created_paths["optimized_jpg_dir"] = path
+    if settings.generate_webp:
+        path = top_folder / config.FOLDER_NAMES["optimized"] / config.FOLDER_NAMES["optimized_webp"]
+        folders_to_create_conditionally.append(path)
+        created_paths["optimized_webp_dir"] = path
+
+    # Compressed folders (if JPG or WebP generated)
+    if settings.generate_compressed_jpg:
+        path = top_folder / config.FOLDER_NAMES["compressed"] / config.FOLDER_NAMES["compressed_jpg"]
+        folders_to_create_conditionally.append(path)
+        created_paths["compressed_jpg_dir"] = path
+    if settings.generate_compressed_webp:
+        path = top_folder / config.FOLDER_NAMES["compressed"] / config.FOLDER_NAMES["compressed_webp"]
+        folders_to_create_conditionally.append(path)
+        created_paths["compressed_webp_dir"] = path
+
+    # Export Originals folder (conditional)
+    if not settings.skip_export and settings.originals_action.lower() in ["copy", "move"]:
+        # Path used in job.py is output_base / config.FOLDER_NAMES["originals"]
+        # Ensure this aligns with FOLDER_NAMES used here.
+        # Assuming config.FOLDER_NAMES["originals"] is the direct name like "Export Originals"
+        path = top_folder / config.FOLDER_NAMES["originals"] 
+        folders_to_create_conditionally.append(path)
+        created_paths["originals_dir"] = path
+    else:
+        logger.info(f"{action_prefix} Skipping 'Export Originals' folder creation based on settings (skip_export={settings.skip_export}, originals_action='{settings.originals_action}').")
+
+    # RAW folder (conditional)
+    if settings.include_raw and has_raw_files and settings.raw_action.lower() in ["copy", "move"]:
+        logger.info(f"{action_prefix} Including RAW folder in output structure")
+        path = top_folder / config.FOLDER_NAMES["raw"]
+        folders_to_create_conditionally.append(path)
+        created_paths["raw_dir"] = path
+    else:
+        logger.info(f"{action_prefix} Skipping RAW folder creation (include_raw={settings.include_raw}, has_raw_files={has_raw_files}, raw_action='{settings.raw_action}')")
+
+    readme_path: Path = top_folder / config.FOLDER_NAMES["top_level_readme"]
+    
     try:
-        for folder_path in folders_to_create:
-            if dry_run:
+        # Remove duplicates just in case, though logic should prevent it
+        for folder_path in sorted(list(set(folders_to_create_conditionally))):
+            if settings.dry_run:
                 logger.info(
                     f"{config.PREFIX_DRYRUN}Would create directory: '{folder_path}'"
                 )
             else:
                 folder_path.mkdir(parents=True, exist_ok=True)
                 logger.info(f"Ensured directory exists: '{folder_path}'")
-        for folder_key in ["optimized", "compressed", "export_originals"]:
-            folder_path = top_folder / config.FOLDER_NAMES[folder_key]
-            if dry_run:
-                logger.info(
-                    f"{config.PREFIX_DRYRUN}Would create directory: '{folder_path}'"
-                )
-            else:
-                folder_path.mkdir(parents=True, exist_ok=True)
-                logger.info(f"Ensured output subfolder exists: {folder_path}")
-        if dry_run:
+        
+        # Write top-level README
+        if settings.dry_run:
             logger.info(
                 f"{config.PREFIX_DRYRUN}Would write top-level README to: '{readme_path}'"
             )
-            logger.info(
-                f"{config.PREFIX_DRYRUN}Would write RAW README to: '{raw_readme_path}'"
-            )
         else:
+            # Ensure delivery_company_name etc. are available from settings
             readme_content = _get_top_level_readme_content(
-                shoot_name,
-                delivery_company_name,
-                delivery_website,
-                delivery_support_email
+                shoot_name_to_use,
+                settings.delivery_company_name, 
+                settings.delivery_website,
+                settings.delivery_support_email
             )
             readme_path.write_text(readme_content, encoding="utf-8")
             logger.debug(f"Created/Updated README: '{readme_path}'")
-        if include_raw:
-            raw_folder = top_folder / config.FOLDER_NAMES["raw"]
-            if not raw_folder.exists():
-                raw_folder.mkdir(parents=True, exist_ok=True)
-            # Always create the README, regardless of has_raw_files
-            raw_readme_path = raw_folder / config.FOLDER_NAMES["raw_readme"]
+
+        # Write RAW README if raw_dir was created
+        if created_paths["raw_dir"]:
+            raw_readme_path: Path = created_paths["raw_dir"] / config.FOLDER_NAMES["raw_readme"]
             raw_readme_content = _get_raw_readme_content()
-            if dry_run:
+            if settings.dry_run:
                 logger.info(
                     f"{config.PREFIX_DRYRUN}Would write RAW README to: '{raw_readme_path}'"
                 )
             else:
                 raw_readme_path.write_text(raw_readme_content, encoding="utf-8")
                 logger.debug(f"Created/Updated README: '{raw_readme_path}'")
-        logger.info(f"{action_prefix}Log file target path: '{log_file_path}'")
+
+        logger.info(f"{action_prefix}Log file target path: '{created_paths['log_file_path']}'")
         logger.info(
             f"{config.PREFIX_DONE}Ensured output structure root at '{top_folder}'"
         )
-        return top_folder
-    except OSError as e:
+        return created_paths # Return the dictionary of paths
+    except PermissionError as pe:
         logger.error(
-            f"{config.PREFIX_ERROR}Failed to create output structure at '{top_folder}'. Error: {e}",
+            f"{config.PREFIX_ERROR}Permission denied creating output structure at '{top_folder}': {pe}",
             exc_info=True,
         )
+        # Propagate to allow job.py to handle UI feedback if necessary
         raise
     except Exception as e:
         logger.error(
-            f"{config.PREFIX_ERROR}Unexpected error planning/creating output structure: {e}",
+            f"{config.PREFIX_ERROR}Unexpected error creating output structure at '{top_folder}': {e}",
             exc_info=True,
         )
         raise
@@ -454,7 +478,7 @@ def rename_processed_files(
     subfolders_to_process: List[Path] = [
         output_base_folder
         / config.FOLDER_NAMES["export"]
-        / config.FOLDER_NAMES["export_originals"],
+        / config.FOLDER_NAMES["export_files"],
         output_base_folder
         / config.FOLDER_NAMES["optimized"]
         / config.FOLDER_NAMES["optimized_jpg"],
@@ -491,7 +515,7 @@ def rename_processed_files(
 
 
 def create_zip_archive(
-    folder_to_zip: Path, zip_file_path: Path, dry_run: bool = False
+    folder_to_zip: Path, zip_file_path: Path, dry_run: bool = False, progress_callback=None
 ) -> bool:
     """
     Create a ZIP archive of a folder and its contents.
@@ -500,6 +524,7 @@ def create_zip_archive(
         folder_to_zip (Path): Folder to archive.
         zip_file_path (Path): Destination ZIP file path.
         dry_run (bool): If True, simulate ZIP creation.
+        progress_callback (Optional[Callable[[float], None]]): Called with progress (0-1) as files are zipped.
     Returns:
         bool: True if ZIP created (or simulated) successfully, False otherwise.
     """
@@ -546,6 +571,8 @@ def create_zip_archive(
                 arcname: Path = item_path.relative_to(folder_to_zip)
                 logger.info(f"[ZIP] Zipping file {idx}/{total_files}: {arcname}")
                 zipf.write(item_path, arcname=arcname)
+                if progress_callback:
+                    progress_callback(idx / total_files)
                 # logger.debug(f"Adding to ZIP: {arcname}")
         logger.info(
             f"{config.PREFIX_DONE}Successfully created ZIP archive: '{zip_file_path}'"

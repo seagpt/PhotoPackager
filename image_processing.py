@@ -436,31 +436,37 @@ def process_image(
                         )
                     else:
                         try:
-                            # Create directory if it doesn't exist
                             opt_jpg_path.parent.mkdir(parents=True, exist_ok=True)
+                            logger.info(f"Attempting to save Optimized JPG: Path='{opt_jpg_path}', Mode='{img_for_jpeg.mode}', Size='{img_for_jpeg.size}', EXIF_Bytes_Type='{type(processed_exif_bytes)}'")
+                            if processed_exif_bytes is None:
+                                logger.info("Processed EXIF bytes is None, as expected for strip_all or similar.")
+                            else:
+                                logger.info(f"Processed EXIF bytes length: {len(processed_exif_bytes) if processed_exif_bytes is not None else 'N/A'}")
+
+                            save_kwargs = {
+                                "format": "JPEG",
+                                "quality": config.OPTIMIZED_QUALITY,
+                                "optimize": True,
+                                "progressive": True,
+                            }
+                            if processed_exif_bytes is not None:
+                                save_kwargs["exif"] = processed_exif_bytes
                             
-                            # Save the optimized JPG
-                            img_for_jpeg.save(
-                                opt_jpg_path,
-                                format="JPEG",
-                                quality=opt_quality,
-                                optimize=True,
-                                exif=processed_exif_bytes
+                            img_for_jpeg.save(opt_jpg_path, **save_kwargs)
+                            
+                            logger.info(f"Successfully called img.save() for Optimized JPG: '{opt_jpg_path}'")
+                            dual_log(f"[INFO] Saved Optimized JPG: {opt_jpg_path}", output_base_folder)
+                            logger.info(
+                                f"Saved Optimized JPG: '{opt_jpg_path.name}' "
+                                f"(Quality: {config.OPTIMIZED_QUALITY})"
                             )
-                            logger.info(f"Saved Optimized JPG: '{opt_jpg_path.name}' (Quality: {opt_quality})")
                         except Exception as e_save_opt_jpg:
                             logger.error(
                                 f"{config.PREFIX_ERROR}Failed to save Optimized JPG for '{file_path.name}' to "
                                 f"'{opt_jpg_path}'. Error: {e_save_opt_jpg}",
                                 exc_info=True
                             )
-                            try:
-                                from PySide6.QtWidgets import QApplication, QMessageBox
-                                import sys
-                                app = QApplication.instance() or QApplication(sys.argv)
-                                QMessageBox.critical(None, "Image Save Error", f"Failed to save Optimized JPG for '{file_path.name}'. Pillow may be missing JPEG support.\n\nError: {e_save_opt_jpg}")
-                            except Exception:
-                                pass
+                            raise
                 else:
                     logger.warning(
                         f"Skipping Optimized JPG for '{file_path.name}' because RGB conversion failed earlier."
@@ -498,6 +504,7 @@ def process_image(
                             f"'{opt_webp_path}'. Error: {e_save_opt_webp}",
                             exc_info=True
                         )
+                        raise
             
             # --- Generate Compressed versions if not disabled ---
             # First check if either compressed format is enabled
@@ -595,13 +602,7 @@ def process_image(
                                     f"{config.PREFIX_ERROR}Failed to save Compressed JPG for '{file_path.name}': {e_save_comp_jpg}",
                                     exc_info=True
                                 )
-                                try:
-                                    from PySide6.QtWidgets import QApplication, QMessageBox
-                                    import sys
-                                    app = QApplication.instance() or QApplication(sys.argv)
-                                    QMessageBox.critical(None, "Image Save Error", f"Failed to save Compressed JPG for '{file_path.name}'. Pillow may be missing JPEG support.\n\nError: {e_save_comp_jpg}")
-                                except Exception:
-                                    pass
+                                raise
                 
                 # --- Save Compressed WebP ---
                 if generate_compressed_webp:
@@ -626,7 +627,6 @@ def process_image(
                                 lossless=False,
                                 method=6,  # Use slowest method for best compression
                                 alpha_quality=100
-                                # exif=processed_exif_bytes # Ignored for WebP in Pillow
                             )
                             dual_log(f"[INFO] Saved Compressed WebP: {comp_webp_path}", output_base_folder)
                             logger.info(
@@ -638,13 +638,7 @@ def process_image(
                                 f"{config.PREFIX_ERROR}Failed to save Compressed WebP: {e_save_comp_webp}",
                                 exc_info=True
                             )
-                            try:
-                                from PySide6.QtWidgets import QApplication, QMessageBox
-                                import sys
-                                app = QApplication.instance() or QApplication(sys.argv)
-                                QMessageBox.critical(None, "Image Save Error", f"Failed to save Compressed WebP for '{file_path.name}'. Pillow may be missing WebP support.\n\nError: {e_save_comp_webp}")
-                            except Exception:
-                                pass
+                            raise
             else:
                 logger.debug(f"Skipping Compressed file generation as per configuration.")
             

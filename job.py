@@ -37,9 +37,9 @@ class PhotoPackagerSettings:
     # File naming options
     add_prefix: bool = False  # Whether to add prefixes like RAW_, Original_, etc.
     # Delivery branding fields (for README and client-facing output)
-    delivery_company_name: str = ""
-    delivery_website: str = ""
-    delivery_support_email: str = ""
+    delivery_company_name: str = "DropShock Digital LLC"
+    delivery_website: str = "https://dropshock.com"
+    delivery_support_email: str = "support@dropshock.com"
     # Add other options as needed from config.py/CLI
 
 
@@ -54,6 +54,7 @@ class PhotoPackagerJob:
         self.logger = logging.getLogger("PhotoPackagerJob")
         self.progress_callback: Optional[Callable[[float], None]] = None
         self.log_callback: Optional[Callable[[str], None]] = None
+        self.cancel_requested = False
 
     def run(
         self,
@@ -92,36 +93,68 @@ class PhotoPackagerJob:
         if not src.is_dir():
             self._log(f"[ERROR] Source folder does not exist: {src}")
             raise FileNotFoundError(f"Source folder does not exist: {src}")
-        out.mkdir(parents=True, exist_ok=True)
-        self._log(f"[DEBUG] dry_run={self.settings.dry_run}, workers={self.settings.workers}, output_base={out / src.name}, total_images={len(list(src.iterdir()))}")
+        # output_base is the shoot-specific folder INSIDE 'out'
+        output_base = out / src.name 
+        # Parent of output_base is 'out'. Create 'out' first if it doesn't exist.
+        out.mkdir(parents=True, exist_ok=True) 
+
+        self._log(f"[DEBUG] dry_run={self.settings.dry_run}, workers={self.settings.workers}, output_base={output_base}, total_images to be scanned in {src}")
 
         # Gather both standard images and RAW files
         standard_images, raw_images = filesystem.scan_directory(src, include_raw=self.settings.include_raw)
-        image_files = standard_images
+        image_files = standard_images # Primarily process standard images for export types
         
         if not standard_images and not raw_images:
-            self._log(f"[WARN] No image files found in: {src}")
-            return
-            
-        self._log(f"Found {len(standard_images)} standard images and {len(raw_images)} RAW files to process.")
-        
-        if len(standard_images) == 0 and len(raw_images) == 0:
-            self._log("[ERROR] No files found to process. Exiting job early.")
-            return
+            self._log("[WARN] No image files found in the source folder.")
+            self._progress(1.0)
+            return # Exit early if no images
 
-        # Prepare output structure
-        shoot_name = src.name
-        filesystem.create_output_structure(
-            shoot_name,
-            out,
-            self.settings.delivery_company_name,
-            self.settings.delivery_website,
-            self.settings.delivery_support_email,
-            has_raw_files=bool(raw_images),  # Only create RAW folder if RAW files found
-            include_raw=self.settings.include_raw,  # Only if user wants to include RAW files
-            dry_run=self.settings.dry_run
+        total_images_to_process = len(image_files) # Base progress on standard images
+        self._log(f"Found {total_images_to_process} standard images and {len(raw_images)} RAW files.")
+
+        # Create output structure using the refactored function
+        # output_base.parent is 'out', the general output directory selected by user.
+        # shoot_name is derived inside create_output_structure from settings.source_folder
+        structure_paths = filesystem.create_output_structure(
+            output_parent=out, # The parent for the shoot folder
+            settings=self.settings,
+            has_raw_files=len(raw_images) > 0
         )
-        output_base = out / shoot_name
+
+        # Retrieve paths from the returned dictionary
+        # output_base should align with structure_paths["top_level_dir"]
+        # For safety, let's use the one from structure_paths if available, or re-verify alignment.
+        actual_output_base = structure_paths.get("top_level_dir")
+        if actual_output_base is None: # Should always be created by create_output_structure
+            self._log(f"[CRITICAL_ERROR] Top-level directory was not created by create_output_structure. Expected at {output_base}")
+            # Fallback or raise, though create_output_structure should raise if top_folder fails
+            actual_output_base = output_base 
+        else:
+            output_base = actual_output_base # Use the path returned by the structure creator
+
+        export_files_path = structure_paths.get("originals_dir") # This is for 'Export Originals'
+        optimized_jpg_dir = structure_paths.get("optimized_jpg_dir")
+        # optimized_webp_dir = structure_paths.get("optimized_webp_dir") # Not directly used later by name
+        compressed_jpg_dir = structure_paths.get("compressed_jpg_dir")
+        # compressed_webp_dir = structure_paths.get("compressed_webp_dir") # Not directly used later by name
+        raw_dir_path = structure_paths.get("raw_dir")
+
+        # Ensure export_files_path (for originals) is created if it's going to be used.
+        # This is now handled by create_output_structure based on settings.
+        if not self.settings.skip_export and self.settings.originals_action.lower() in ["copy", "move"]:
+            if export_files_path:
+                self._log(f"'Export Originals' directory set to: {export_files_path}")
+            else:
+                # This case should ideally not happen if settings dictate originals handling and create_output_structure works.
+                self._log(f"[WARN] Originals are set to be copied/moved, but 'Export Originals' path was not provided by create_output_structure.")
+                # Fallback: define it based on output_base and config, but it should have been made.
+                # This might indicate an issue in create_output_structure logic if settings say copy/move but dir isn't made.
+                # For robustness, let's log and potentially try to use a default, though the test expects it to be created.
+                export_files_path = output_base / config.FOLDER_NAMES["originals"] 
+                if not self.settings.dry_run: export_files_path.mkdir(parents=True, exist_ok=True) # Ensure if fallback used
+
+        processed_count = 0
+        images_with_errors = []
 
         # Prepare processing options
         global_choices = {
@@ -162,6 +195,9 @@ class PhotoPackagerJob:
         if self.settings.dry_run or self.settings.workers <= 1:
             self._log("[INFO] Running in single-threaded mode (dry_run or workers=1). No process pool will be used.")
             for i, img in enumerate(image_files, 1):
+                if getattr(self, 'cancel_requested', False):
+                    self._log("[CANCELLED] Job was cancelled by user.")
+                    return
                 try:
                     result = PhotoPackagerJob.process_and_report(img, worker_args)
                     log_result(result)
@@ -210,8 +246,6 @@ class PhotoPackagerJob:
 
         # --- Handle Export Originals logic ---
         originals_action = getattr(self.settings, 'originals_action', 'copy')
-        export_originals_path = output_base / config.FOLDER_NAMES["export_originals"]
-        
         # Process standard images
         if self.settings.skip_export:
             self._log("Skipping export of originals (--skip-export)")
@@ -220,6 +254,9 @@ class PhotoPackagerJob:
             self._log(f"Processing {len(standard_images)} standard images...")
             
             for idx, img_path in enumerate(standard_images):
+                if getattr(self, 'cancel_requested', False):
+                    self._log("[CANCELLED] Job was cancelled by user during originals export.")
+                    return
                 # Calculate progress for standard images
                 total_files = len(standard_images) + (len(raw_images) if self.settings.include_raw else 0)
                 self._progress(idx / total_files * 0.25)  # First 25% of progress
@@ -228,18 +265,23 @@ class PhotoPackagerJob:
                 img_name = img_path.name
                 if self.settings.add_prefix:
                     img_name = config.FILE_PREFIXES["original"] + img_name
-                    
-                target_path = export_originals_path / img_name
+                
+                target_path = export_files_path / img_name
                 
                 if self.settings.dry_run:
                     self._log(f"[DRYRUN] Would {originals_action} {img_path.name} to exports folder as {img_name}")
                 else:
-                    if originals_action == "move":
-                        shutil.move(img_path, target_path)
-                        self._log(f"Moved original: {img_path.name} → {img_name}")
-                    else:  # copy
-                        shutil.copy2(img_path, target_path)
-                        self._log(f"Copied original: {img_path.name} → {img_name}")
+                    try:
+                        if originals_action == "move":
+                            shutil.move(img_path, target_path)
+                            self._log(f"Moved original: {img_path.name} → {img_name}")
+                        else:  # copy
+                            shutil.copy2(img_path, target_path)
+                            self._log(f"Copied original: {img_path.name} → {img_name}")
+                    except PermissionError as pe:
+                        self._log(f"[ERROR] Permission denied for {img_path.name}: {pe}")
+                    except Exception as e:
+                        self._log(f"[ERROR] Failed to process {img_path.name}: {e}")
 
         # Process RAW files if found and enabled
         if raw_images and self.settings.include_raw:
@@ -256,6 +298,9 @@ class PhotoPackagerJob:
                     filesystem.create_raw_readme(raw_folder_path, dry_run=self.settings.dry_run)
 
             for idx, raw_path in enumerate(raw_images):
+                if getattr(self, 'cancel_requested', False):
+                    self._log("[CANCELLED] Job was cancelled by user during RAW export.")
+                    return
                 # Continue progress calculation from where standard images left off
                 progress_base = 0.25 * (len(standard_images) / total_files) if standard_images else 0
                 progress_increment = 0.25 / len(raw_images)
@@ -276,29 +321,70 @@ class PhotoPackagerJob:
                 if self.settings.dry_run:
                     self._log(f"[DRYRUN] Would {raw_action} {raw_path.name} to RAW folder as {raw_name}")
                 else:
-                    if raw_action == "move":
-                        shutil.move(raw_path, target_path)
-                        self._log(f"Moved RAW file: {raw_path.name} → {raw_name}")
-                    else:  # copy
-                        shutil.copy2(raw_path, target_path)
-                        self._log(f"Copied RAW file: {raw_path.name} → {raw_name}")
+                    try:
+                        if raw_action == "move":
+                            shutil.move(raw_path, target_path)
+                            self._log(f"Moved RAW file: {raw_path.name} → {raw_name}")
+                        else:  # copy
+                            shutil.copy2(raw_path, target_path)
+                            self._log(f"Copied RAW file: {raw_path.name} → {raw_name}")
+                    except PermissionError as pe:
+                        self._log(f"[ERROR] Permission denied for {raw_path.name}: {pe}")
+                    except Exception as e:
+                        self._log(f"[ERROR] Failed to process {raw_path.name}: {e}")
 
         # Optionally create ZIPs for all main outputs
         if self.settings.create_zip and not self.settings.dry_run:
-            zip_targets = [
-                (export_originals_path, output_base / "Export Originals.zip"),
-                (output_base / config.FOLDER_NAMES["optimized"], output_base / "Optimized Files.zip"),
-                (output_base / config.FOLDER_NAMES["compressed"], output_base / "Compressed Files.zip"),
-            ]
-            for folder, zip_path in zip_targets:
-                if folder.exists():
-                    ok = filesystem.create_zip_archive(folder, zip_path, dry_run=False)
+            zip_targets = []
+            # Export Files (Originals) ZIP - only if originals were handled and path exists
+            if export_files_path and export_files_path.exists() and any(export_files_path.iterdir()):
+                 zip_targets.append((export_files_path, output_base / f"{config.FOLDER_NAMES['originals']}.zip"))
+            
+            # Optimized Files ZIP (parent of Optimized JPGs and WebPs)
+            # Assuming config.FOLDER_NAMES["optimized"] is "Optimized Files"
+            optimized_parent_dir = output_base / config.FOLDER_NAMES["optimized"]
+            if optimized_parent_dir.exists() and any(optimized_parent_dir.iterdir()):
+                zip_targets.append((optimized_parent_dir, output_base / f"{config.FOLDER_NAMES['optimized']}.zip"))
+
+            # Compressed Files ZIP (parent of Compressed JPGs and WebPs)
+            # Assuming config.FOLDER_NAMES["compressed"] is "Compressed Files"
+            compressed_parent_dir = output_base / config.FOLDER_NAMES["compressed"]
+            if compressed_parent_dir.exists() and any(compressed_parent_dir.iterdir()):
+                zip_targets.append((compressed_parent_dir, output_base / f"{config.FOLDER_NAMES['compressed']}.zip"))
+
+            # Add RAW ZIP if RAWs were included and raw_dir_path exists and is non-empty
+            if self.settings.include_raw and raw_dir_path and raw_dir_path.exists() and any(raw_dir_path.iterdir()):
+                zip_targets.append((raw_dir_path, output_base / f"{config.FOLDER_NAMES['raw']}.zip"))
+            
+            if not zip_targets:
+                self._log("[INFO] No suitable folders found for ZIP creation.")
+            else:
+                total_zip_tasks = len(zip_targets)
+                current_zip_task = 0
+                for i, (folder, zip_path) in enumerate(zip_targets):
+                    current_zip_task +=1
+                    self._log(f"Preparing to ZIP {folder.name} ({current_zip_task}/{total_zip_tasks})")
+                    def zip_progress_callback(zip_prog):
+                        # Map progress for each ZIP to the final 10% of the overall bar, divided by number of ZIPs
+                        # Example: if 2 zips, first is 0.9-0.95, second is 0.95-1.0
+                        zip_phase_progress_start = 0.9 
+                        zip_phase_total_progress = 0.1 # Allocate 10% of total progress to zipping
+                        
+                        # Progress within the current ZIP's allocated portion
+                        current_zip_progress_share = zip_prog * (zip_phase_total_progress / total_zip_tasks)
+                        
+                        # Progress accomplished by previous zips within the zipping phase
+                        progress_from_previous_zips = (i / total_zip_tasks) * zip_phase_total_progress
+                        
+                        overall_prog = zip_phase_progress_start + progress_from_previous_zips + current_zip_progress_share
+                        overall_prog = min(max(overall_prog, 0.0), 1.0) # Clamp to [0, 1]
+                        self._progress(overall_prog)
+
+                    ok = filesystem.create_zip_archive(folder, zip_path, dry_run=False, progress_callback=zip_progress_callback)
                     if ok:
                         self._log(f"Created ZIP archive: {zip_path}")
                     else:
                         self._log(f"[WARN] ZIP archive not created or failed: {zip_path}")
-                else:
-                    self._log(f"[SKIP] ZIP not created, folder does not exist: {folder}")
         self._progress(1.0)
         self._log("PhotoPackager job complete.")
 
