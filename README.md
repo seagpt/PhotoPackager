@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/PhotoPackager_Patch_Design.png" alt="PhotoPackager Logo" width="400" style="margin-bottom:10px;"/>
   <h1>PhotoPackager</h1>
-  <h3 align="center" style="font-weight: normal; margin-top: -10px; margin-bottom: 10px;">Implement Automated Accessibility For Your Photoshoots</h3>
+  <h3 align="center" style="font-weight: normal; margin-top: -10px; margin-bottom: 10px;">Make Photoshoots Client Accessible</h3>
   <p><strong>A Creative Photoshoot Pipeline Tool By Steven Seagondollar, DropShock Digital</a></strong></p>
   <br>
   <a href="https://www.dropshockdigital.com" target="_blank" rel="noopener noreferrer">
