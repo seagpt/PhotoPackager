@@ -1,9 +1,8 @@
 <div align="center">
-  <img src="assets/PhotoPackager_Patch_Design.png" alt="PhotoPackager Logo" width="175" style="margin-bottom:10px;"/>
+  <img src="assets/PhotoPackager_Patch_Design.png" alt="PhotoPackager Logo" width="400" style="margin-bottom:10px;"/>
   <h1>PhotoPackager</h1>
-  <h3 align="center" style="font-weight: normal; margin-top: -10px; margin-bottom: 10px;">Your Automated Photoshoot Packager</h3>
-  <p><strong>Make Your Shoots Accessible To Clients</strong></p>
-  <p><strong>A professional tool by <a href="https://www.dropshockdigital.com" target="_blank" rel="noopener noreferrer">Steven Seagondollar, DropShock Digital LLC</a></strong></p>
+  <h3 align="center" style="font-weight: normal; margin-top: -10px; margin-bottom: 10px;">Implement Automated Accessibility For Your Photoshoots</h3>
+  <p><strong>A creative photoshoot pipeline tool by <a href="https://www.dropshockdigital.com" target="_blank" rel="noopener noreferrer">Steven Seagondollar, DropShock Digital LLC</a></strong></p>
   <br>
   <a href="https://www.dropshockdigital.com" target="_blank" rel="noopener noreferrer">
     <img src="assets/(White) DropShock Digital - Photography Watermark Version 2.png" alt="DropShock Digital - Creators for Creators" width="350" style="margin-top: 5px; margin-bottom: 20px;"/>
