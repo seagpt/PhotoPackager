@@ -14,7 +14,7 @@ from pathlib import Path
 
 # --- Configuration ---
 APP_NAME = "PhotoPackager"
-APP_VERSION = "1.1.0"  # Updated for current release
+APP_VERSION = "1.0.0"  # First official launch version
 DEVELOPER_ID = None  # "Developer ID Application: Your Name (TEAM_ID)"
 GITHUB_RELEASE = True
 NOTARIZE = False  # Set to True when you have Apple credentials configured

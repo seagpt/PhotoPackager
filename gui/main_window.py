@@ -1,6 +1,8 @@
 import sys
 import os
 from pathlib import Path
+from app import __version__ as app_version_string
+import subprocess
 
 # --- Ensure project root is in sys.path for root-level imports ---
 project_root = Path(__file__).resolve().parent.parent
@@ -25,10 +27,14 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QProgressBar,
     QGroupBox,
+    QDialog,
+    QDialogButtonBox,
+    QMessageBox,
+    QScrollArea
 )
-from PySide6.QtGui import QPixmap, QIcon
-from PySide6.QtCore import Qt, QObject, Signal, QThread
-from job import PhotoPackagerJob, PhotoPackagerSettings
+from PySide6.QtGui import QPixmap, QIcon, QDesktopServices
+from PySide6.QtCore import Qt, QObject, Signal, QThread, QUrl
+from job import PhotoPackagerJob, PhotoPackagerSettings, JobSummary
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -66,11 +72,12 @@ LOGO_PATH = resource_path("assets/PhotoPackager_Patch_Design.png")
 GITHUB_URL = "https://github.com/seagpt/PhotoPackager"
 
 
-class JobWorker(QObject):
+class JobThread(QObject):
     log_signal = Signal(str)
     status_signal = Signal(str)
     progress_signal = Signal(int)
     finished_signal = Signal()
+    job_summary_ready = Signal(object)
 
     def __init__(self, settings):
         super().__init__()
@@ -87,7 +94,8 @@ class JobWorker(QObject):
                 self.progress_signal.emit(int(val * 100))
 
             job = PhotoPackagerJob(self.settings)
-            job.run(progress_callback=progress_callback, log_callback=log_callback)
+            summary = job.run(progress_callback=progress_callback, log_callback=log_callback)
+            self.job_summary_ready.emit(summary)
             self.status_signal.emit("Done!")
             self.progress_signal.emit(100)
             self.finished_signal.emit()
@@ -122,6 +130,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         
         self.settings = settings
+        self.app_version = app_version_string # Set app version early here
         # debug_qt support removed for simplicity
         
         try:
@@ -247,10 +256,42 @@ class MainWindow(QMainWindow):
             self.add_prefix_checkbox.setChecked(getattr(self.settings, 'default_add_prefix', True))
             self.add_prefix_checkbox.setToolTip("Add prefixes to filenames:\nRAW_, Original_, Optimized_, Compressed_")
             
-            # Keep EXIF
-            self.keep_exif_checkbox = QCheckBox("Keep EXIF Data") 
-            self.keep_exif_checkbox.setChecked(getattr(self.settings, 'default_exif_option', 'keep') == "keep")
-            self.keep_exif_checkbox.setToolTip("Preserve photo metadata like camera info and date")
+            # EXIF Policy
+            self.exif_policy_label = QLabel("EXIF Policy:")
+            self.exif_policy_combo = QComboBox()
+            self.exif_options = {
+                "Keep": "keep",
+                "Strip All": "strip_all",
+                "Date Only (requires piexif)": "date_only",
+                "Camera Only (requires piexif)": "camera_only",
+                "Date & Camera (requires piexif)": "date_camera"
+            }
+            for display_name in self.exif_options.keys():
+                self.exif_policy_combo.addItem(display_name)
+            
+            exif_tooltip = ("Granular EXIF Metadata Control – Manage Embedded Image Information with Precision and Intent:\n"
+                            "PhotoPackager offers users precise and configurable control over how EXIF (Exchangeable Image File Format) metadata is handled...\n\n"
+                            "Keep: (Default) Preserves all original EXIF metadata.\n"
+                            "Strip All: Removes all EXIF data. Useful for privacy or minimizing file size.\n"
+                            "Date Only: Removes date and time-related EXIF tags (requires piexif).\n"
+                            "Camera Only: Removes camera make/model and lens EXIF tags (requires piexif).\n"
+                            "Date & Camera: Removes both date/time and camera/lens EXIF tags (requires piexif).")
+            self.exif_policy_combo.setToolTip(exif_tooltip)
+            self.exif_policy_label.setToolTip(exif_tooltip)
+
+            # Worker Count
+            self.workers_label = QLabel("Max Workers:")
+            self.job_thread_objs_spin = QSpinBox()
+            self.job_thread_objs_spin.setMinimum(1)
+            try:
+                cpu_cores = os.cpu_count() or 8 # Default to 8 if None
+                self.job_thread_objs_spin.setMaximum(cpu_cores)
+                recommended_threads = max(1, cpu_cores // 2)
+                self.job_thread_objs_spin.setToolTip(f"Number of parallel processing threads.\nRecommended: {recommended_threads} (half of your {cpu_cores} available cores) to balance performance and system responsiveness.")
+            except AttributeError: # os.cpu_count() might not always be available
+                self.job_thread_objs_spin.setMaximum(16) # Fallback max
+                self.job_thread_objs_spin.setToolTip("Number of parallel processing threads. Setting this too high might overload your system.")
+            self.job_thread_objs_spin.setValue(getattr(self.settings, 'default_workers', max(1, (os.cpu_count() or 2) // 2))) # Set default based on recommendation
             
             # Create ZIP
             self.zip_checkbox = QCheckBox("Create ZIP Archives")
@@ -260,13 +301,6 @@ class MainWindow(QMainWindow):
             # Dry Run
             self.dry_run_checkbox = QCheckBox("Dry Run Mode")
             self.dry_run_checkbox.setToolTip("Test mode - shows what would happen without actually creating files")
-            
-            # CPU Threads
-            self.workers_spin = QSpinBox()
-            self.workers_spin.setMinimum(1)
-            self.workers_spin.setMaximum(64)
-            self.workers_spin.setValue(getattr(self.settings, 'default_workers', 5))
-            self.workers_spin.setToolTip("Number of CPU threads for processing\nRecommended: half your total CPU cores")
             
             # Organize settings into logical groups
             # 1. Input/Output Files Panel
@@ -321,7 +355,8 @@ class MainWindow(QMainWindow):
             
             # File Options
             processing_layout.addWidget(self.add_prefix_checkbox)
-            processing_layout.addWidget(self.keep_exif_checkbox)
+            processing_layout.addWidget(self.exif_policy_label)
+            processing_layout.addWidget(self.exif_policy_combo)
             processing_layout.addWidget(self.zip_checkbox)
             processing_layout.addWidget(self.dry_run_checkbox)
             
@@ -329,10 +364,8 @@ class MainWindow(QMainWindow):
             
             # CPU Threads
             threads_layout = QHBoxLayout()
-            threads_label = QLabel("CPU Threads:")
-            threads_label.setToolTip("Number of parallel threads to use for processing")
-            threads_layout.addWidget(threads_label)
-            threads_layout.addWidget(self.workers_spin)
+            threads_layout.addWidget(self.workers_label)
+            threads_layout.addWidget(self.job_thread_objs_spin)
             threads_layout.addStretch(1)
             processing_layout.addLayout(threads_layout)
             
@@ -422,10 +455,21 @@ class MainWindow(QMainWindow):
             main_hlayout.addWidget(right_col, stretch=1)
             self.setCentralWidget(central)
             # Connect signals
-            self.start_btn.clicked.connect(self.start_worker)
+            self.start_btn.clicked.connect(self.start_job_processing)
             # Exception hook for GUI log
             sys.excepthook = GuiExceptionLogger(self.log)
             logger.info("MainWindow.__init__: Initialization finished successfully.")
+            
+            # Load EXIF policy setting
+            default_exif_policy_key = getattr(self.settings, 'exif_policy', 'keep') # Get the stored key like 'keep'
+            # Find the display name that corresponds to the stored key
+            for display_name, key_name in self.exif_options.items():
+                if key_name == default_exif_policy_key:
+                    self.exif_policy_combo.setCurrentText(display_name)
+                    break
+            else: # if loop completes without break, policy from settings not found, default to 'Keep'
+                self.exif_policy_combo.setCurrentText("Keep")
+            
         except Exception as e:
             logger.critical(f"MainWindow.__init__: CRITICAL ERROR during initialization: {e}\n{traceback.format_exc()}", exc_info=True)
             # If UI setup failed, it might be hard to show an error, but we try.
@@ -488,7 +532,7 @@ class MainWindow(QMainWindow):
         logger.info("'Save as Defaults' button clicked, but feature is currently disabled for end-users.")
         return
 
-    def start_worker(self):
+    def start_job_processing(self):
         import os
         from PySide6.QtWidgets import QMessageBox
         source_folder = self.src_edit.text().strip()
@@ -529,7 +573,7 @@ class MainWindow(QMainWindow):
         output_folder = self.out_edit.text().strip()
         originals_action = self.originals_combo.currentText().lower()
         move_originals = originals_action == "move"
-        exif_policy = "keep" if self.keep_exif_checkbox.isChecked() else "strip_all"
+        exif_policy = self.exif_options.get(self.exif_policy_combo.currentText(), 'keep') # Get the selected policy
         generate_jpg = self.jpg_checkbox.isChecked()
         generate_webp = self.webp_checkbox.isChecked()
         generate_compressed_jpg = self.compressed_jpg_checkbox.isChecked()
@@ -537,7 +581,7 @@ class MainWindow(QMainWindow):
         # For backward compatibility
         generate_low_quality = generate_compressed_jpg or generate_compressed_webp
         create_zip = self.zip_checkbox.isChecked()
-        workers = self.workers_spin.value()
+        workers = self.job_thread_objs_spin.value()
         dry_run = self.dry_run_checkbox.isChecked()
         # Delivery branding fields
         delivery_company_name = self.delivery_company_edit.text().strip()
@@ -574,79 +618,182 @@ class MainWindow(QMainWindow):
             raw_action=self.raw_combo.currentText().lower(),
             add_prefix=self.add_prefix_checkbox.isChecked(),
         )
-        self.worker_thread = QThread()
-        self.worker = JobWorker(settings)
-        self.worker.moveToThread(self.worker_thread)
-        self.worker.log_signal.connect(self.log)
-        self.worker.status_signal.connect(self.set_status)
-        self.worker.progress_signal.connect(self.set_progress)
-        self.worker.finished_signal.connect(self.worker_thread.quit)
-        self.worker.finished_signal.connect(lambda: self.start_btn.setEnabled(True))
-        self.worker.finished_signal.connect(lambda: self.cancel_btn.setEnabled(False))
-        self.worker.finished_signal.connect(self.show_job_summary_dialog)
-        self.cancel_btn.clicked.connect(self.cancel_worker)
-        self.worker_thread.started.connect(self.worker.run)
-        self.worker_thread.start()
-    def cancel_worker(self):
-        if hasattr(self, 'worker') and self.worker is not None:
-            self.worker.cancel_requested = True
+        self.job_thread_obj = JobThread(settings)
+        self.thread = QThread()
+        self.job_thread_obj.moveToThread(self.thread)
+        self.job_thread_obj.log_signal.connect(self.log)
+        self.job_thread_obj.status_signal.connect(self.set_status)
+        self.job_thread_obj.progress_signal.connect(self.set_progress)
+        self.job_thread_obj.finished_signal.connect(self.thread.quit)
+        self.job_thread_obj.finished_signal.connect(lambda: self.start_btn.setEnabled(True))
+        self.job_thread_obj.finished_signal.connect(lambda: self.cancel_btn.setEnabled(False))
+        self.job_thread_obj.job_summary_ready.connect(self.handle_job_summary)
+        self.cancel_btn.clicked.connect(self.cancel_job_processing)
+        self.thread.started.connect(self.job_thread_obj.run)
+        self.thread.start()
+
+    def cancel_job_processing(self):
+        if hasattr(self, 'job_thread_obj') and self.job_thread_obj is not None:
+            self.job_thread_obj.settings.cancel_requested = True
             self.set_status("Cancelling...")
             self.cancel_btn.setEnabled(False)
-    def show_job_summary_dialog(self):
-        from PySide6.QtWidgets import QMessageBox
-        from PySide6.QtGui import QPixmap
-        import os
-        s = self._job_summary
+    def handle_job_summary(self, summary: JobSummary):
+        """Handles the job summary when it's ready."""
+        # This method is now the primary way to get results.
+        # self.on_job_finished might still be used for overall UI state changes (enable/disable buttons)
+        # but the dialog display is triggered by the summary itself.
+        self.show_job_summary_dialog(summary)
 
-        # Count all output file types in the output directory
-        output_folder = self.out_edit.text().strip()
-        file_counts = {"JPG": 0, "WebP": 0, "RAW": 0, "ZIP": 0, "Other": 0}
-        exts_map = {".jpg": "JPG", ".jpeg": "JPG", ".webp": "WebP", ".arw": "RAW", ".cr2": "RAW", ".nef": "RAW", ".dng": "RAW", ".zip": "ZIP"}
-        total_files = 0
-        for root, _, files in os.walk(output_folder):
-            for f in files:
-                ext = os.path.splitext(f)[1].lower()
-                key = exts_map.get(ext, None)
-                if key:
-                    file_counts[key] += 1
-                else:
-                    file_counts["Other"] += 1
-                total_files += 1
+    def show_job_summary_dialog(self, summary: JobSummary):
+        """Displays a dialog with the job summary and an option to send feedback."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Job Complete")
+        layout = QVBoxLayout(dialog)
 
-        breakdown = ", ".join(f"{k}: {v}" for k, v in file_counts.items() if v > 0)
-        summary = (
-            f"Processed: {s['processed']}\n"
-            f"Skipped: {s['skipped']}\n"
-            f"Errors: {s['errors']}\n"
-            f"Total saved size: {s['total_size']/1024/1024:.2f} MB\n"
-            f"Output breakdown: {breakdown}\n"
-            f"Total output files: {total_files}"
+        duration = summary.end_time - summary.start_time
+        email_body_template = (
+            "Thanks PhotoPackager!\n\n"
+            "------------------------------------\n"
+            "Handled: {handled} / Processed: {processed} / Generated: {generated}\n"
+            "------------------------------------\n\n"
+            "Additional User Feedback, Feature Requests, & Reviews (Optional):\n"
+            "{comments}" # Comments will be empty from dialog, user adds in email client
         )
 
-        # Prepare the message box
-        msgbox = QMessageBox(self)
-        if s['errors'] > 0:
-            msgbox.setWindowTitle("PhotoPackager - Job Completed with Errors")
-            details = '\n'.join(s['error_files'])
-            msgbox.setIcon(QMessageBox.Critical)
-            msgbox.setText(summary + "\n\nFiles with errors:\n" + details)
-        else:
-            msgbox.setWindowTitle("PhotoPackager - Job Complete")
-            msgbox.setIcon(QMessageBox.Information)
-            msgbox.setText(summary)
-        # Set PhotoPackager logo as the icon
-        try:
-            logo_path = getattr(self.settings, 'logo_path', None)
-            if not logo_path:
-                logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets/logo.png")
-            if os.path.exists(logo_path):
-                pixmap = QPixmap(logo_path)
-                if not pixmap.isNull():
-                    msgbox.setIconPixmap(pixmap.scaledToHeight(48))
-        except Exception as e:
-            # Fallback: do nothing if logo fails
-            pass
-        msgbox.exec()
+        def send_email_feedback():
+            # Comments are now added by the user in their email client, so pass an empty string here.
+            email_body_plain = email_body_template.format(
+                handled=summary.handled_files_count,
+                processed=summary.processed_files_count,
+                generated=summary.generated_files_count,
+                comments="" 
+            )
+            email_subject_plain = "PhotoPackager Usage Stats"
+            
+            recipient_email = self.settings.get('delivery_support_email', 'photopackager@dropshockdigital.com')
+            if recipient_email == 'photopackager@dropshockdigital.com':
+                logging.warning(
+                    "'delivery_support_email' not found in settings or settings is not as expected. "
+                    "Using fallback email. Please check settings configuration."
+                )
+
+            if sys.platform == "darwin":
+                try:
+                    # For AppleScript, use plain strings and escape them for AppleScript's syntax
+                    as_subject = email_subject_plain.replace('\\', '\\\\').replace('"', '\\"')
+                    as_body = email_body_plain.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\r')
+                    as_recipient = recipient_email # Assuming recipient_email is a plain string
+
+                    script = f'''
+                    tell application "Mail"
+                        set theSubject to "{as_subject}"
+                        set theContent to "{as_body}"
+                        set theAddress to "{as_recipient}"
+                        set theMessage to make new outgoing message with properties {{subject:theSubject, content:theContent, visible:true}}
+                        tell theMessage
+                            make new to recipient at end of to recipients with properties {{address:theAddress}}
+                        end tell
+                        activate
+                    end tell
+                    '''
+                    subprocess.run(["osascript", "-e", script], check=True, capture_output=True, text=True)
+                    logging.info("Successfully triggered Mail.app via AppleScript.")
+                    return  # Success, do not fall through
+                except FileNotFoundError:
+                    logging.error("osascript command not found. Falling back to QDesktopServices.")
+                except subprocess.CalledProcessError as e:
+                    logging.error(f"AppleScript execution failed: {e}\nStderr: {e.stderr}\nStdout: {e.stdout}. Falling back to QDesktopServices.")
+                except Exception as e:
+                    logging.error(f"An unexpected error occurred during AppleScript execution: {e}. Falling back to QDesktopServices.")
+            
+            # Fallback for non-macOS or if AppleScript fails/is not available
+            # For QDesktopServices, URL encode the plain subject and body
+            url_encoded_subject = QUrl.toPercentEncoding(email_subject_plain)
+            url_encoded_body = QUrl.toPercentEncoding(email_body_plain)
+            mailto_url_str = f"mailto:{recipient_email}?subject={url_encoded_subject}&body={url_encoded_body}"
+            mailto_url = QUrl(mailto_url_str)
+            logging.debug(f"Generated mailto URL (fallback): {mailto_url.toString()}")
+            if not QDesktopServices.openUrl(mailto_url):
+                QMessageBox.warning(dialog, "Email Client Error", "Could not open your default email client. Please copy the email body manually if you wish to send feedback.")
+            else:
+                logging.info("Opened email client via QDesktopServices (fallback).")
+
+        def copy_email_body():
+            clipboard = QApplication.clipboard()
+            # Use email_body_plain for copying, as it's the raw intended text
+            email_to_copy = email_body_template.format(
+                handled=summary.handled_files_count,
+                processed=summary.processed_files_count,
+                generated=summary.generated_files_count,
+                comments="" 
+            )
+            clipboard.setText(email_to_copy)
+        summary_text = (
+            f"Job finished in {duration:.2f} seconds.\n\n"
+            f"Images Scanned: {summary.total_files_scanned}\n"
+            f"  (Standard: {summary.total_standard_images_scanned}, RAW: {summary.total_raw_files_scanned})\n"
+            f"Input Files Handled: {summary.handled_files_count}\n"
+            f"Standard Images Processed (Optimized/Compressed): {summary.processed_files_count}\n"
+            f"Output Files Generated: {summary.generated_files_count}\n"
+            f"Skipped: {summary.skipped_files_count}\n"
+            f"Errors: {summary.error_files_count}\n"
+            # f"Total Output Size: {self._job_total_output_size:.2f} MB\n\n" # REMOVED - Attribute doesn't exist
+            f"\nOutput Types Generated Counts:\n" # Added newline for spacing
+        )
+        summary_label = QLabel(summary_text)
+        layout.addWidget(summary_label)
+
+        # Updated informational text for the dialog
+        dialog_info_text_template = (
+            "<div style='text-align: center;'>"
+            "<b>Job complete! Please email the processing summary below!</b>"
+            "<br>"
+            "This helps track PhotoPackger's success metrics.\n\n"
+            "<br>"
+            "Send one email for every job you run."
+            "<br>"
+            "<br>"
+            "<b>What will be sent:</b>\n"
+            "<br>"
+            "<br>"
+            "<b>Handled: {handled} / Processed: {processed} / Generated: {generated}</b>\n"
+            "<br>"
+            "<br>"
+            "No information beyond the above would be sent, no personal information.\n\n"
+            "<br>"
+            "<br>"
+            "Click <b>'Review and Send'</b> to open your email client."
+            "<br>"
+            "<br>"
+            "You can add any optional feedback directly in the email before sending."
+            "</div>"
+        )
+        feedback_label = QLabel(dialog_info_text_template.format(
+            handled=summary.handled_files_count,
+            processed=summary.processed_files_count,
+            generated=summary.generated_files_count
+        ))
+        feedback_label.setTextFormat(Qt.RichText) # Enable HTML rendering
+        feedback_label.setWordWrap(True)
+        layout.addWidget(feedback_label)
+
+        button_box = QDialogButtonBox()
+        send_feedback_button = button_box.addButton("Review and Send", QDialogButtonBox.ActionRole)
+        copy_email_body_button = button_box.addButton("Copy Email Body", QDialogButtonBox.ActionRole)
+        close_button = button_box.addButton(QDialogButtonBox.Close)
+
+        layout.addWidget(button_box)
+        dialog.setLayout(layout)
+
+        send_feedback_button.clicked.connect(send_email_feedback)
+        copy_email_body_button.clicked.connect(copy_email_body)
+        close_button.clicked.connect(dialog.accept)
+
+        dialog.exec()
+        logging.info("Job summary dialog closed.")
+
+    def _validate_shoot_name(self, shoot_name: str) -> bool:
+        return True
 
 
 def run_app(settings):

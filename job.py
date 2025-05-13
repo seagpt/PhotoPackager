@@ -3,10 +3,11 @@ PhotoPackagerJob: New API entry point for GUI/automated use.
 This class will encapsulate all core settings and workflow logic, calling into filesystem.py and image_processing.py.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
 import shutil
-from typing import Callable, Optional
+from typing import Callable, Optional, List, Tuple, Dict, Any
+import time
 
 
 # Example settings dataclass for clarity and type safety
@@ -41,6 +42,42 @@ class PhotoPackagerSettings:
     delivery_website: str = "https://dropshock.com"
     delivery_support_email: str = "support@dropshock.com"
     # Add other options as needed from config.py/CLI
+    shoot_name: Optional[str] = None # Added for GUI-specified shoot name
+
+
+@dataclass
+class JobSummary:
+    job_name: str = "Untitled Job"
+    start_time: float = field(default_factory=time.time)
+    end_time: float = 0.0
+    total_standard_images_scanned: int = 0
+    total_raw_files_scanned: int = 0
+    total_files_scanned: int = 0
+    processed_files_count: int = 0  # Count of standard images processed (optimized/compressed)
+    handled_files_count: int = 0    # Count of unique input files successfully handled (calculated at end)
+    generated_files_count: int = 0  # Count of actual output files created
+    skipped_files_count: int = 0
+    error_files_count: int = 0
+    copied_originals_count: int = 0
+    copied_raw_count: int = 0
+    # Stores (filepath, error_message) tuples
+    error_details: List[Tuple[str, str]] = field(default_factory=list)
+    # Counts of each output type, e.g., {'optimized_jpg': 10, 'optimized_webp': 8, 'compressed_jpg': 5}
+    output_file_counts: Dict[str, int] = field(default_factory=lambda: {
+        'exported_originals': 0,
+        'optimized_jpg': 0,
+        'optimized_webp': 0,
+        'compressed_jpg': 0,
+        'compressed_webp': 0,
+        'copied_raw': 0,
+        'zip_originals': 0,
+        'zip_optimized': 0,
+        'zip_compressed': 0,
+        'zip_raw': 0,
+    })
+    total_output_files_generated: int = 0 # Sum of all values in output_file_counts
+    total_disk_space_saved_mb: float = 0.0 # Approximate, if calculable
+    # Could add more fields like processing_time, etc.
 
 
 class PhotoPackagerJob:
@@ -55,6 +92,32 @@ class PhotoPackagerJob:
         self.progress_callback: Optional[Callable[[float], None]] = None
         self.log_callback: Optional[Callable[[str], None]] = None
         self.cancel_requested = False
+        self.summary = JobSummary() # Initialize JobSummary
+
+    @staticmethod
+    def process_and_report(img_path, worker_args):
+        """
+        Wrapper function to call the actual image processing and handle exceptions,
+        returning a tuple suitable for the job runner.
+        Returns: (img_path, error_message_or_none, generated_count)
+        """
+        import image_processing # <<< ADD IMPORT HERE
+        try:
+            # Directly call the updated process_image which now returns an int
+            generated_count = image_processing.process_image(
+                img_path,
+                worker_args["output_base"],
+                worker_args["global_choices"],
+                worker_args["dry_run"],
+            )
+            # Return img_path, None for error, and the generated count
+            return (img_path, None, generated_count)
+        except Exception as e:
+            # Log the error here as well, as process_image might not if exception is early
+            error_msg = f"Unhandled exception in process_image for {img_path.name}: {e}"
+            # logger.error(error_msg, exc_info=True) # Assuming job runner logs the error details
+            # Return img_path, the error message, and 0 generated count
+            return (img_path, error_msg, 0)
 
     def run(
         self,
@@ -81,7 +144,7 @@ class PhotoPackagerJob:
         from pathlib import Path
         import filesystem
         import config
-        from concurrent.futures import ProcessPoolExecutor, as_completed
+        from concurrent.futures import ProcessPoolExecutor, as_completed, process
 
         self.progress_callback = progress_callback
         self.log_callback = log_callback
@@ -102,15 +165,19 @@ class PhotoPackagerJob:
 
         # Gather both standard images and RAW files
         standard_images, raw_images = filesystem.scan_directory(src, include_raw=self.settings.include_raw)
-        image_files = standard_images # Primarily process standard images for export types
+        image_files_to_process = standard_images # Standard images are the primary target for multi-format export
         
+        self.summary.total_standard_images_scanned = len(standard_images)
+        self.summary.total_raw_files_scanned = len(raw_images)
+        self.summary.total_files_scanned = len(standard_images) + len(raw_images)
+
         if not standard_images and not raw_images:
             self._log("[WARN] No image files found in the source folder.")
             self._progress(1.0)
-            return # Exit early if no images
+            return self.summary # Exit early if no images
 
-        total_images_to_process = len(image_files) # Base progress on standard images
-        self._log(f"Found {total_images_to_process} standard images and {len(raw_images)} RAW files.")
+        total_images_for_progress = len(image_files_to_process)
+        self._log(f"Found {self.summary.total_standard_images_scanned} standard images and {self.summary.total_raw_files_scanned} RAW files.")
 
         # Create output structure using the refactored function
         # output_base.parent is 'out', the general output directory selected by user.
@@ -176,7 +243,7 @@ class PhotoPackagerJob:
             config, "DEFAULT_WORKERS", os.cpu_count() or 1
         )
         processed = 0
-        total = len(image_files)
+        total = len(image_files_to_process)
         worker_args = {
             "output_base": output_base,
             "global_choices": global_choices,
@@ -184,17 +251,24 @@ class PhotoPackagerJob:
         }
 
         def log_result(result):
-            if isinstance(result, tuple) and len(result) == 2:
-                img_path, error = result
+            # Expecting (img_path, error_message_or_none, generated_count)
+            if isinstance(result, tuple) and len(result) == 3:
+                img_path, error, generated_count = result # UNPACK all 3
                 if error:
                     self._log(f"[ERROR] Failed to process {img_path.name}: {error}")
+                    self.summary.error_files_count += 1
+                    self.summary.error_details.append((str(img_path), error))
                 else:
-                    self._log(f"Processed: {img_path.name}")
-
+                    self._log(f"Successfully processed: {img_path.name}")
+                    self.summary.processed_files_count += 1 
+                    self.summary.generated_files_count += generated_count # ADD generated count here
+                    # TODO: Update self.summary.output_file_counts based on actual files generated by process_image
+                    # This would require process_and_report to return more detailed stats from image_processing.process_image
+                        
         # SERIAL: Use single-threaded loop if dry_run or workers==1 (test/CLI robustness)
         if self.settings.dry_run or self.settings.workers <= 1:
             self._log("[INFO] Running in single-threaded mode (dry_run or workers=1). No process pool will be used.")
-            for i, img in enumerate(image_files, 1):
+            for i, img in enumerate(image_files_to_process, 1):
                 if getattr(self, 'cancel_requested', False):
                     self._log("[CANCELLED] Job was cancelled by user.")
                     return
@@ -214,14 +288,24 @@ class PhotoPackagerJob:
                         executor.submit(
                             PhotoPackagerJob.process_and_report, img, worker_args
                         ): img
-                        for img in image_files
+                        for img in image_files_to_process
                     }
                     for i, future in enumerate(as_completed(futures), 1):
                         try:
                             result = future.result()
-                            log_result(result)
-                        except Exception as exc:
-                            self._log(f"[ERROR] Exception in worker for {futures[future]}: {exc}")
+                            # UNPACK all 3: img_path, error_message, generated_count
+                            img_path, error_message, generated_count = result 
+                            if error_message:
+                                self._log(f"[ERROR] Failed to process {img_path.name}: {error_message}")
+                                self.summary.error_files_count += 1
+                                self.summary.error_details.append((str(img_path), error_message))
+                            else:
+                                self._log(f"Successfully processed (parallel): {img_path.name}")
+                                self.summary.processed_files_count += 1 # FIX: Increment count for PARALLEL processed files
+                                self.summary.generated_files_count += generated_count # ADD generated count here
+                                # TODO: Use processing_stats to update output_file_counts etc.
+                        except process.BrokenProcessPool as bpe:
+                            self._log(f"[CRITICAL_ERROR] Process pool broke while processing {img_path.name if img_path else 'unknown image'}: {bpe}. This can happen if a child process terminates unexpectedly. Try reducing worker count or checking system resources.")
                         processed += 1
                         self._progress(processed / total)
             except Exception as e:
@@ -273,11 +357,15 @@ class PhotoPackagerJob:
                 else:
                     try:
                         if originals_action == "move":
-                            shutil.move(img_path, target_path)
+                            shutil.move(str(img_path), str(target_path))
                             self._log(f"Moved original: {img_path.name} → {img_name}")
+                            # Increment counts for successful copy/move of original
+                            self.summary.copied_originals_count += 1
                         else:  # copy
-                            shutil.copy2(img_path, target_path)
+                            shutil.copy2(str(img_path), str(target_path))
                             self._log(f"Copied original: {img_path.name} → {img_name}")
+                            # Increment counts for successful copy/move of original
+                            self.summary.copied_originals_count += 1
                     except PermissionError as pe:
                         self._log(f"[ERROR] Permission denied for {img_path.name}: {pe}")
                     except Exception as e:
@@ -311,7 +399,7 @@ class PhotoPackagerJob:
                 if self.settings.add_prefix:
                     raw_name = config.FILE_PREFIXES["raw"] + raw_name
 
-                target_path = raw_folder_path / raw_name
+                target_raw_path = raw_folder_path / raw_name
 
                 # Skip file operations if 'leave' is selected
                 if raw_action == "leave":
@@ -323,11 +411,15 @@ class PhotoPackagerJob:
                 else:
                     try:
                         if raw_action == "move":
-                            shutil.move(raw_path, target_path)
+                            shutil.move(str(raw_path), str(target_raw_path))
                             self._log(f"Moved RAW file: {raw_path.name} → {raw_name}")
+                            # Increment counts for successful copy/move of RAW
+                            self.summary.copied_raw_count += 1
                         else:  # copy
-                            shutil.copy2(raw_path, target_path)
+                            shutil.copy2(str(raw_path), str(target_raw_path))
                             self._log(f"Copied RAW file: {raw_path.name} → {raw_name}")
+                            # Increment counts for successful copy/move of RAW
+                            self.summary.copied_raw_count += 1
                     except PermissionError as pe:
                         self._log(f"[ERROR] Permission denied for {raw_path.name}: {pe}")
                     except Exception as e:
@@ -387,30 +479,18 @@ class PhotoPackagerJob:
                         self._log(f"[WARN] ZIP archive not created or failed: {zip_path}")
         self._progress(1.0)
         self._log("PhotoPackager job complete.")
-
-
-    def process_and_report(img_path, worker_args):
-        """
-        Worker function for parallel image processing. Handles error reporting.
-
-        Args:
-            img_path (Path): Path to the image file.
-            worker_args (dict): Arguments for processing (output_base, global_choices, dry_run).
-        Returns:
-            tuple: (img_path, error) where error is None if successful, else error message.
-        """
-        import image_processing
-
-        try:
-            image_processing.process_image(
-                img_path,
-                worker_args["output_base"],
-                worker_args["global_choices"],
-                dry_run=worker_args["dry_run"],
-            )
-            return (img_path, None)
-        except Exception as e:
-            return (img_path, str(e))
+        
+        # Final calculations
+        self.summary.end_time = time.time()
+        # Calculate handled files based on total scanned minus errors/skipped
+        self.summary.handled_files_count = (
+            self.summary.total_files_scanned
+            - self.summary.error_files_count
+            - self.summary.skipped_files_count
+        )
+        # Ensure handled count isn't negative if somehow errors > scanned
+        self.summary.handled_files_count = max(0, self.summary.handled_files_count)
+        return self.summary
 
     def _progress(self, value: float):
         """

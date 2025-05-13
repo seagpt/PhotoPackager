@@ -1,6 +1,4 @@
-#!/bin/sh
-'''exec' "/Volumes/DUAL DRIVE/Development/My Projects/PhotoPackager/venv_mac/bin/python3" "$0" "$@"
-' '''
+#!/Users/stevenseagondollar/Desktop/PhotoPackager/venv_mac/bin/python3.12
 # -*- coding: utf-8 -*-
 import re
 import sys
