@@ -1,8 +1,8 @@
 <div align="center">
   <img src="assets/PhotoPackager_Patch_Design.png" alt="PhotoPackager Logo" width="175" style="margin-bottom:10px;"/>
   <h1>PhotoPackager</h1>
-  <h3 align="center" style="font-weight: normal; margin-top: -10px; margin-bottom: 10px;">Your Automated Photo Shoot Delivery Assistant</h3>
-  <p><strong>Organize, Process, Package, and Deliver with Professional Finesse.</strong></p>
+  <h3 align="center" style="font-weight: normal; margin-top: -10px; margin-bottom: 10px;">Your Automated Photoshoot Packager</h3>
+  <p><strong>Make Your Shoots Accessible To Clients</strong></p>
   <p><strong>A professional tool by <a href="https://www.dropshockdigital.com" target="_blank" rel="noopener noreferrer">Steven Seagondollar, DropShock Digital LLC</a></strong></p>
   <br>
   <a href="https://www.dropshockdigital.com" target="_blank" rel="noopener noreferrer">
