@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhotoPackager Web Edition - Professional Photo Processing Tool</title>
+    <meta name="description" content="Professional web-based photo processing tool that creates organized client delivery packages with optimized and compressed versions of your photos.">
+    <link rel="stylesheet" href="src/styles/main.css">
+    <link rel="stylesheet" href="src/styles/accessibility.css">
+    <link rel="stylesheet" href="src/styles/mobile.css">
+    <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
+    
+    <!-- Accessibility: Skip to main content -->
+    <style>
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 6px;
+            background: #00aeff;
+            color: white;
+            padding: 8px;
+            text-decoration: none;
+            border-radius: 4px;
+            z-index: 10001;
+        }
+        .skip-link:focus {
+            top: 6px;
+        }
+    </style>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <div id="app">
+        <header class="app-header" role="banner">
+            <div class="header-content">
+                <img src="assets/logo.png" alt="PhotoPackager logo - Professional photo processing tool" class="logo" />
+                <h1>PhotoPackager Web Edition</h1>
+                <p class="tagline">Make Photoshoots Client Accessible</p>
+            </div>
+        </header>
+
+        <main id="main-content" class="main-content" role="main">
+            <!-- File Drop Zone -->
+            <section id="dropZone" class="drop-zone" role="region" aria-labelledby="drop-zone-title" tabindex="0" aria-describedby="drop-zone-description">
+                <div class="drop-zone-content">
+                    <div class="drop-icon" role="img" aria-label="Camera icon">📸</div>
+                    <h2 id="drop-zone-title">Drop Your Photo Folder Here</h2>
+                    <p id="drop-zone-description">Or click to select a folder containing your photos. Supports JPG, PNG, WebP, RAW files and more.</p>
+                    <input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;" aria-label="Select photo folder" />
+                    <button id="selectFolderBtn" class="btn btn-primary" aria-describedby="drop-zone-description">Select Folder</button>
+                </div>
+            </section>
+
+            <!-- Configuration Panel -->
+            <section id="configPanel" class="config-panel" style="display: none;" role="region" aria-labelledby="config-panel-title">
+                <h2 id="config-panel-title" class="sr-only">Photo Processing Configuration</h2>
+                <div class="config-section">
+                    <h3>Project Settings</h3>
+                    <div class="form-group">
+                        <label for="projectName">Project Name: <span class="required" aria-label="required">*</span></label>
+                        <input type="text" id="projectName" placeholder="e.g., Johnson_Family_Portraits_2025" required aria-describedby="projectName-help" />
+                        <div id="projectName-help" class="help-text">Used for the folder name and README file</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="studioName">Studio Name:</label>
+                        <input type="text" id="studioName" placeholder="Your Studio Name" aria-describedby="studioName-help" />
+                        <div id="studioName-help" class="help-text">Appears in the README file for client branding</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="studioWebsite">Website:</label>
+                        <input type="url" id="studioWebsite" placeholder="https://yourstudio.com" aria-describedby="studioWebsite-help" />
+                        <div id="studioWebsite-help" class="help-text">Your studio's website URL</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="studioEmail">Email:</label>
+                        <input type="email" id="studioEmail" placeholder="contact@yourstudio.com" aria-describedby="studioEmail-help" />
+                        <div id="studioEmail-help" class="help-text">Contact email for client inquiries</div>
+                    </div>
+                </div>
+
+                <div class="config-section">
+                    <h3>Processing Options</h3>
+                    
+                    <fieldset class="checkbox-group">
+                        <legend class="sr-only">File inclusion options</legend>
+                        <div class="form-group">
+                            <label for="includeOriginals">
+                                <input type="checkbox" id="includeOriginals" checked aria-describedby="includeOriginals-help" />
+                                Include Original Files
+                            </label>
+                            <div id="includeOriginals-help" class="help-text">Include unmodified original photo files in the package</div>
+                        </div>
+                    
+                    <div class="form-group">
+                        <label for="originalsAction">Original Files Action:</label>
+                        <select id="originalsAction">
+                            <option value="copy" selected>Copy (Safest - keeps originals in place)</option>
+                            <option value="leave">Leave (Don't include in package)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="includeRaw" checked />
+                            Include RAW Files
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="rawAction">RAW Files Action:</label>
+                        <select id="rawAction">
+                            <option value="copy" selected>Copy (Safest - keeps RAW files in place)</option>
+                            <option value="leave">Leave (Don't include in package)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="generateOptimizedJPG" checked />
+                            Generate Optimized JPG (High Quality)
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="generateOptimizedWebP" checked />
+                            Generate Optimized WebP (High Quality)
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="generateCompressedJPG" checked />
+                            Generate Compressed JPG (Web/Social)
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="generateCompressedWebP" checked />
+                            Generate Compressed WebP (Web/Social)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="config-section">
+                    <h3>Quality Settings</h3>
+                    
+                    <div class="form-group">
+                        <label for="optimizedQuality">Optimized Quality (60-95):</label>
+                        <input type="range" id="optimizedQuality" min="60" max="95" value="85" />
+                        <span id="optimizedQualityValue">85</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="compressedQuality">Compressed Quality (30-80):</label>
+                        <input type="range" id="compressedQuality" min="30" max="80" value="65" />
+                        <span id="compressedQualityValue">65</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="compressedMaxDimension">Compressed Max Size (pixels):</label>
+                        <select id="compressedMaxDimension">
+                            <option value="1920">1920px (HD)</option>
+                            <option value="2048" selected>2048px (2K)</option>
+                            <option value="2560">2560px (QHD)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="config-section">
+                    <h3>Metadata Options</h3>
+                    
+                    <div class="form-group">
+                        <label for="exifHandling">EXIF Data Handling:</label>
+                        <select id="exifHandling">
+                            <option value="preserve">Preserve All</option>
+                            <option value="strip_all">Strip All</option>
+                            <option value="date_only">Remove Date Only</option>
+                            <option value="camera_only">Remove Camera Only</option>
+                            <option value="date_camera">Remove Date & Camera</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <button id="startProcessingBtn" class="btn btn-success btn-large">Start Processing</button>
+                </div>
+            </div>
+
+            <!-- Progress Panel -->
+            <div id="progressPanel" class="progress-panel" style="display: none;">
+                <div class="progress-header">
+                    <h3>Processing Photos...</h3>
+                    <div class="progress-stats">
+                        <span id="currentFile">Initializing...</span>
+                        <span id="progressCount">0 / 0</span>
+                    </div>
+                </div>
+                
+                <div class="progress-bar-container">
+                    <div id="progressBar" class="progress-bar"></div>
+                    <div class="progress-text">
+                        <span id="progressPercent">0%</span>
+                        <span id="timeRemaining">Calculating...</span>
+                    </div>
+                </div>
+                
+                <div class="progress-details">
+                    <div class="detail-row">
+                        <span>Files Processed:</span>
+                        <span id="filesProcessed">0</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Total Size:</span>
+                        <span id="totalSize">0 MB</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Processing Speed:</span>
+                        <span id="processingSpeed">0 files/min</span>
+                    </div>
+                </div>
+                
+                <div id="progressLog" class="progress-log"></div>
+            </div>
+
+            <!-- Completion Panel -->
+            <div id="completionPanel" class="completion-panel" style="display: none;">
+                <div class="completion-content">
+                    <div class="success-icon">✅</div>
+                    <h2>Processing Complete!</h2>
+                    <p>Your photo package has been created successfully.</p>
+                    
+                    <div class="completion-stats">
+                        <div class="stat">
+                            <span class="stat-value" id="finalFileCount">0</span>
+                            <span class="stat-label">Files Processed</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value" id="finalProcessingTime">0m 0s</span>
+                            <span class="stat-label">Processing Time</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value" id="finalPackageSize">0 MB</span>
+                            <span class="stat-label">Package Size</span>
+                        </div>
+                    </div>
+                    
+                    <div class="download-section">
+                        <button id="downloadPackageBtn" class="btn btn-primary btn-large">
+                            📦 Download Complete Package
+                        </button>
+                        <p class="download-note">
+                            Your package includes organized folders, optimized images, and a README file.
+                        </p>
+                    </div>
+                    
+                    <button id="startOverBtn" class="btn btn-secondary">Process Another Folder</button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <p>&copy; 2025 PhotoPackager by <a href="https://dropshockdigital.com" target="_blank">DropShock Digital LLC</a></p>
+            <div class="footer-links">
+                <a href="privacy-policy.html" target="_blank">Privacy Policy</a> | 
+                <a href="terms-of-service.html" target="_blank">Terms of Service</a>
+            </div>
+        </footer>
+    </div>
+
+    <script type="module" src="src/js/AnalyticsManager.js"></script>
+    <script type="module" src="src/js/CookieConsent.js"></script>
+    <script type="module" src="src/js/ErrorHandler.js"></script>
+    <script type="module" src="src/js/InputValidator.js"></script>
+    <script type="module" src="src/js/AccessibilityManager.js"></script>
+    <script type="module" src="src/js/PerformanceOptimizer.js"></script>
+    <script type="module" src="src/js/ProgressPersistence.js"></script>
+    <script type="module" src="src/main.js"></script>
+    <script type="module" src="src/js/ComprehensiveUITester.js"></script>
+</body>
+</html>

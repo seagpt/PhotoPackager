@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhotoPackager Analytics Integration Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a1a;
+            color: #00aeff;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #2a2a2a;
+            border: 1px solid #00aeff;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .test-pass { color: #00ff00; }
+        .test-fail { color: #ff0000; }
+        .test-warn { color: #ffaa00; }
+        button {
+            background: #00aeff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            margin: 0.5rem;
+            cursor: pointer;
+        }
+        button:hover { background: #0088cc; }
+        #console { 
+            background: #000; 
+            color: #0f0; 
+            padding: 1rem; 
+            border-radius: 5px;
+            height: 200px; 
+            overflow-y: scroll; 
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        .status { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>📊 PhotoPackager Analytics & Legal Integration Test</h1>
+    
+    <div class="test-section">
+        <h2>🍪 Cookie Consent System</h2>
+        <div id="cookieStatus" class="status test-warn">Testing...</div>
+        <button onclick="testCookieConsent()">Test Cookie Consent</button>
+        <button onclick="resetCookieConsent()">Reset Consent</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📈 Analytics Manager</h2>
+        <div id="analyticsStatus" class="status test-warn">Testing...</div>
+        <button onclick="testAnalyticsEvents()">Test Analytics Events</button>
+        <button onclick="testSessionTracking()">Test Session Tracking</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📄 Legal Pages</h2>
+        <div id="legalStatus" class="status test-warn">Testing...</div>
+        <button onclick="testLegalPages()">Test Legal Pages</button>
+    </div>
+
+    <div class="test-section">
+        <h2>🔗 Integration Points</h2>
+        <div id="integrationStatus" class="status test-warn">Testing...</div>
+        <button onclick="testIntegration()">Test Full Integration</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Console Output</h2>
+        <div id="console"></div>
+        <button onclick="clearConsole()">Clear Console</button>
+    </div>
+
+    <script>
+        let testResults = [];
+        
+        function log(message, type = 'info') {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff0000' : type === 'success' ? '#00ff00' : '#0f0';
+            console.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+        }
+        
+        function updateStatus(elementId, status, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = status;
+            element.className = `status test-${type}`;
+        }
+        
+        async function testCookieConsent() {
+            log('Testing Cookie Consent System...');
+            
+            try {
+                // Check if CookieConsent class exists
+                if (typeof CookieConsent === 'undefined') {
+                    throw new Error('CookieConsent class not found');
+                }
+                
+                // Check localStorage for consent
+                const stored = localStorage.getItem('photopackager_consent');
+                log(`Stored consent: ${stored || 'None'}`);
+                
+                // Test consent methods
+                const consent = new CookieConsent();
+                const hasConsent = consent.hasValidConsent();
+                log(`Has valid consent: ${hasConsent}`);
+                
+                // Test consent data
+                const consentData = consent.getConsent();
+                log(`Consent data: ${JSON.stringify(consentData)}`);
+                
+                updateStatus('cookieStatus', '✅ Cookie Consent System Working', 'pass');
+                log('Cookie consent test passed!', 'success');
+                
+            } catch (error) {
+                log(`Cookie consent test failed: ${error.message}`, 'error');
+                updateStatus('cookieStatus', '❌ Cookie Consent System Failed', 'fail');
+            }
+        }
+        
+        function resetCookieConsent() {
+            localStorage.removeItem('photopackager_consent');
+            localStorage.removeItem('analytics_consent');
+            log('Cookie consent reset - reload page to see banner');
+        }
+        
+        async function testAnalyticsEvents() {
+            log('Testing Analytics Events...');
+            
+            try {
+                // Check if analytics manager exists
+                if (!window.analytics) {
+                    throw new Error('Analytics manager not found');
+                }
+                
+                // Test session start
+                window.analytics.trackSessionStart();
+                log('Session start tracked');
+                
+                // Test processing events
+                window.analytics.trackProcessingStart(10, 50000000); // 10 files, 50MB
+                log('Processing start tracked');
+                
+                // Test feature usage
+                window.analytics.trackFeatureUsage('includeOriginals', true);
+                log('Feature usage tracked');
+                
+                // Test processing complete
+                window.analytics.trackProcessingComplete(10, 30000, 25000000); // 10 files, 30s, 25MB
+                log('Processing complete tracked');
+                
+                // Test error tracking
+                window.analytics.trackError('test_error', 'This is a test error');
+                log('Error tracking tested');
+                
+                // Get session metrics
+                const metrics = window.analytics.getSessionMetrics();
+                log(`Session metrics: ${JSON.stringify(metrics)}`);
+                
+                updateStatus('analyticsStatus', '✅ Analytics System Working', 'pass');
+                log('Analytics test passed!', 'success');
+                
+            } catch (error) {
+                log(`Analytics test failed: ${error.message}`, 'error');
+                updateStatus('analyticsStatus', '❌ Analytics System Failed', 'fail');
+            }
+        }
+        
+        async function testSessionTracking() {
+            log('Testing Session Tracking...');
+            
+            try {
+                if (!window.analytics) {
+                    throw new Error('Analytics manager not found');
+                }
+                
+                const metrics = window.analytics.getSessionMetrics();
+                log(`Session ID: ${metrics.sessionId}`);
+                log(`Session Duration: ${metrics.sessionDuration}ms`);
+                log(`Photos Processed: ${metrics.photosProcessed}`);
+                
+                // Test session end
+                window.analytics.trackSessionEnd();
+                log('Session end tracked');
+                
+                updateStatus('analyticsStatus', '✅ Session Tracking Working', 'pass');
+                log('Session tracking test passed!', 'success');
+                
+            } catch (error) {
+                log(`Session tracking test failed: ${error.message}`, 'error');
+                updateStatus('analyticsStatus', '❌ Session Tracking Failed', 'fail');
+            }
+        }
+        
+        async function testLegalPages() {
+            log('Testing Legal Pages...');
+            
+            try {
+                // Test privacy policy
+                const privacyResponse = await fetch('privacy-policy.html');
+                if (!privacyResponse.ok) {
+                    throw new Error('Privacy policy page not found');
+                }
+                log('Privacy policy page accessible');
+                
+                // Test terms of service
+                const termsResponse = await fetch('terms-of-service.html');
+                if (!termsResponse.ok) {
+                    throw new Error('Terms of service page not found');
+                }
+                log('Terms of service page accessible');
+                
+                // Check for footer links
+                const footerLinks = document.querySelector('.footer-links');
+                if (!footerLinks) {
+                    throw new Error('Footer links not found in main app');
+                }
+                log('Footer links present');
+                
+                updateStatus('legalStatus', '✅ Legal Pages Working', 'pass');
+                log('Legal pages test passed!', 'success');
+                
+            } catch (error) {
+                log(`Legal pages test failed: ${error.message}`, 'error');
+                updateStatus('legalStatus', '❌ Legal Pages Failed', 'fail');
+            }
+        }
+        
+        async function testIntegration() {
+            log('Testing Full Integration...');
+            
+            try {
+                let passed = 0;
+                let total = 4;
+                
+                // Test 1: Analytics and consent integration
+                if (window.analytics && typeof CookieConsent !== 'undefined') {
+                    log('✓ Analytics and consent classes loaded');
+                    passed++;
+                } else {
+                    log('✗ Missing analytics or consent classes');
+                }
+                
+                // Test 2: DOM integration
+                const scripts = document.querySelectorAll('script[src*="Analytics"], script[src*="Cookie"]');
+                if (scripts.length >= 2) {
+                    log('✓ Analytics and consent scripts loaded in main app');
+                    passed++;
+                } else {
+                    log('✗ Missing script tags in main app');
+                }
+                
+                // Test 3: Footer integration
+                const footerLinks = document.querySelector('.footer-links a[href="privacy-policy.html"]');
+                if (footerLinks) {
+                    log('✓ Privacy policy link in footer');
+                    passed++;
+                } else {
+                    log('✗ Missing privacy policy link in footer');
+                }
+                
+                // Test 4: GDPR compliance
+                const hasConsentBanner = document.getElementById('cookie-consent-banner');
+                const hasStoredConsent = localStorage.getItem('photopackager_consent');
+                if (hasConsentBanner || hasStoredConsent) {
+                    log('✓ GDPR compliance system active');
+                    passed++;
+                } else {
+                    log('✗ GDPR compliance system not active');
+                }
+                
+                const score = Math.round((passed / total) * 100);
+                log(`Integration score: ${passed}/${total} (${score}%)`);
+                
+                if (passed === total) {
+                    updateStatus('integrationStatus', '✅ Full Integration Working', 'pass');
+                    log('Full integration test passed!', 'success');
+                } else {
+                    updateStatus('integrationStatus', `⚠️ Partial Integration (${score}%)`, 'warn');
+                    log(`Integration test partially passed (${score}%)`, 'warn');
+                }
+                
+            } catch (error) {
+                log(`Integration test failed: ${error.message}`, 'error');
+                updateStatus('integrationStatus', '❌ Integration Failed', 'fail');
+            }
+        }
+        
+        // Auto-run basic tests on load
+        document.addEventListener('DOMContentLoaded', async () => {
+            log('PhotoPackager Analytics Integration Test Started');
+            log('Auto-running basic integration test...');
+            
+            // Wait for scripts to load
+            setTimeout(() => {
+                testIntegration();
+            }, 1000);
+        });
+    </script>
+
+    <script type="module" src="src/js/AnalyticsManager.js"></script>
+    <script type="module" src="src/js/CookieConsent.js"></script>
+</body>
+</html>

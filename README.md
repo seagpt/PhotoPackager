@@ -18,6 +18,17 @@
 
 ---
 
+## 🌟 Choose Your PhotoPackager Experience
+
+### 🖥️ **Desktop Edition** (This Repository Root)
+Full-featured desktop application with system-wide file access and unlimited processing power.
+
+### 🌐 **Web Edition** ([`/web-edition/`](web-edition/) Directory)
+Browser-based version with client-side processing - perfect for sharing and mobile access.  
+**[📖 Web Edition Documentation](WEB-EDITION-README.md)** | **🚀 [Live Demo - Coming Soon]**
+
+---
+
 ## 🚀 Quick Download Links (v1.0.0 - First Release)
 
 Download the first official version of PhotoPackager for your operating system:

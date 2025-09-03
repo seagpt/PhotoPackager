@@ -1,0 +1,367 @@
+/**
+ * accessibility.css
+ * WCAG 2.1 Compliant accessibility styles for PhotoPackager
+ */
+
+/* Screen reader only text */
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link:focus {
+    clip: auto;
+    height: auto;
+    overflow: visible;
+    position: absolute;
+    width: auto;
+    z-index: 10001;
+}
+
+/* Focus indicators - high contrast and visible */
+*:focus {
+    outline: 3px solid #00aeff !important;
+    outline-offset: 2px !important;
+}
+
+/* Enhanced focus for interactive elements */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+a:focus,
+[tabindex]:focus {
+    box-shadow: 
+        0 0 0 3px rgba(0, 174, 255, 0.5),
+        0 0 8px rgba(0, 174, 255, 0.3) !important;
+}
+
+/* Focus for drop zone */
+#dropZone:focus {
+    border-color: #00aeff !important;
+    box-shadow: 
+        0 0 0 3px rgba(0, 174, 255, 0.3),
+        inset 0 0 20px rgba(0, 174, 255, 0.2) !important;
+}
+
+/* Required field indicator */
+.required {
+    color: #ff4444;
+    font-weight: bold;
+}
+
+/* Help text styling */
+.help-text {
+    font-size: 0.875rem;
+    color: #cccccc;
+    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+
+/* Error state styling */
+.error {
+    border-color: #ff4444 !important;
+    background: rgba(255, 68, 68, 0.1) !important;
+}
+
+.error-message {
+    color: #ff4444;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    font-weight: 500;
+}
+
+/* Success state styling */
+.success {
+    border-color: #00ff88 !important;
+    background: rgba(0, 255, 136, 0.1) !important;
+}
+
+/* Fieldset and legend styling */
+fieldset {
+    border: 1px solid rgba(0, 174, 255, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    background: rgba(0, 174, 255, 0.05);
+}
+
+legend {
+    color: #00aeff;
+    font-weight: 600;
+    padding: 0 0.5rem;
+}
+
+.checkbox-group fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: none;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --primary-color: #ffffff;
+        --background-color: #000000;
+        --border-color: #ffffff;
+        --text-color: #ffffff;
+    }
+    
+    body {
+        background: var(--background-color) !important;
+        color: var(--text-color) !important;
+    }
+    
+    .btn {
+        border: 2px solid var(--border-color) !important;
+    }
+    
+    input, select, textarea {
+        border: 2px solid var(--border-color) !important;
+        background: var(--background-color) !important;
+        color: var(--text-color) !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .logo {
+        animation: none !important;
+    }
+    
+    .btn {
+        transition: none !important;
+    }
+    
+    .btn:hover {
+        transform: none !important;
+    }
+}
+
+/* Large text / zoom support */
+@media (min-width: 320px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+/* Touch target minimum size (44px x 44px per WCAG 2.1 AA) */
+button,
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+.btn,
+a {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+}
+
+/* Checkbox and radio minimum target size */
+input[type="checkbox"],
+input[type="radio"] {
+    min-height: 20px;
+    min-width: 20px;
+    margin-right: 0.5rem;
+}
+
+/* Label click target improvement */
+label {
+    cursor: pointer;
+    display: block;
+    padding: 0.25rem 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+/* Progress bar accessibility */
+.progress-bar {
+    role: progressbar;
+}
+
+.progress-bar[aria-valuenow] {
+    position: relative;
+}
+
+.progress-bar[aria-valuenow]::after {
+    content: attr(aria-valuenow) '%';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ffffff;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Modal accessibility */
+.modal[role="dialog"] {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+}
+
+.modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Live region for dynamic content */
+.live-region {
+    position: absolute;
+    left: -10000px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+/* Color contrast improvements */
+::selection {
+    background: #00aeff;
+    color: #ffffff;
+}
+
+::-moz-selection {
+    background: #00aeff;
+    color: #ffffff;
+}
+
+/* Table accessibility improvements */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    text-align: left;
+    padding: 0.75rem;
+    border-bottom: 1px solid rgba(0, 174, 255, 0.2);
+}
+
+th {
+    background: rgba(0, 174, 255, 0.1);
+    font-weight: 600;
+}
+
+/* Form validation improvements */
+input:invalid {
+    border-color: #ff4444;
+    box-shadow: none;
+}
+
+input:valid {
+    border-color: #00ff88;
+}
+
+/* Tooltip accessibility */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:focus::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
+}
+
+[data-tooltip]:hover::before,
+[data-tooltip]:focus::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+}
+
+/* Print accessibility */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    a::after {
+        content: ' (' attr(href) ')';
+    }
+    
+    .btn {
+        border: 1px solid #000 !important;
+        background: white !important;
+        color: black !important;
+    }
+}
+
+/* Dark mode preference support */
+@media (prefers-color-scheme: light) {
+    .auto-theme {
+        background: #ffffff;
+        color: #000000;
+    }
+}
+
+/* Keyboard navigation improvements */
+.keyboard-nav *:focus {
+    outline: 3px solid #00aeff !important;
+    outline-offset: 2px !important;
+}
+
+/* Screen reader improvements for dynamic content */
+[aria-live] {
+    position: relative;
+}
+
+/* Loading state accessibility */
+.loading {
+    position: relative;
+}
+
+.loading::after {
+    content: 'Loading...';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 1rem;
+    border-radius: 4px;
+    font-weight: bold;
+}

@@ -1,0 +1,23 @@
+{
+  "name": "photopackager-web",
+  "version": "2.0.0",
+  "description": "PhotoPackager Web Edition - Client-side photo processing and packaging",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "python3 -m http.server 8080"
+  },
+  "keywords": ["photography", "image-processing", "client-delivery", "photo-packaging"],
+  "author": "Steven Seagondollar, DropShock Digital LLC",
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "exif-js": "^2.3.0"
+  }
+}

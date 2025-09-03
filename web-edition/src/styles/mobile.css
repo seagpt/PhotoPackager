@@ -1,0 +1,511 @@
+/**
+ * mobile.css
+ * Mobile-first responsive design and touch interactions for PhotoPackager
+ */
+
+/* Mobile-first base styles */
+@media (max-width: 768px) {
+    /* Header adjustments */
+    .logo {
+        height: 150px; /* Smaller on mobile */
+    }
+
+    .app-header h1 {
+        font-size: 2rem;
+        text-align: center;
+    }
+
+    .tagline {
+        font-size: 1rem;
+    }
+
+    /* Drop zone optimization for mobile */
+    .drop-zone {
+        min-height: 250px;
+        margin: 1rem;
+        padding: 2rem 1rem;
+    }
+
+    .drop-zone-content h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .drop-zone-content p {
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .drop-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Touch-friendly buttons */
+    .btn {
+        min-height: 48px;
+        min-width: 48px;
+        padding: 12px 20px;
+        font-size: 1.1rem;
+        margin: 8px 4px;
+        border-radius: 12px;
+    }
+
+    .btn-large {
+        padding: 20px 30px;
+        font-size: 1.3rem;
+        min-height: 60px;
+    }
+
+    /* Configuration panel mobile layout */
+    .config-panel {
+        margin: 1rem;
+        padding: 1.5rem 1rem;
+    }
+
+    .config-section {
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+    }
+
+    .config-section h3 {
+        font-size: 1.3rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Form elements touch optimization */
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        font-size: 1.1rem;
+        margin-bottom: 8px;
+        display: block;
+        min-height: 48px;
+        align-items: center;
+        padding: 8px 0;
+    }
+
+    .form-group input,
+    .form-group select {
+        font-size: 1.1rem;
+        padding: 16px;
+        min-height: 48px;
+        border-radius: 12px;
+    }
+
+    /* Checkbox and radio bigger targets */
+    .form-group input[type="checkbox"],
+    .form-group input[type="radio"] {
+        width: 24px;
+        height: 24px;
+        margin-right: 12px;
+        transform: none; /* Remove the scale transform on mobile */
+    }
+
+    /* Range sliders touch-friendly */
+    .form-group input[type="range"] {
+        height: 8px;
+        margin: 16px 0;
+    }
+
+    .form-group input[type="range"]::-webkit-slider-thumb {
+        width: 28px;
+        height: 28px;
+    }
+
+    .form-group input[type="range"]::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+    }
+
+    /* Progress panel mobile */
+    .progress-panel {
+        margin: 1rem;
+        padding: 1.5rem 1rem;
+    }
+
+    .progress-header h3 {
+        font-size: 1.3rem;
+        margin-bottom: 1rem;
+    }
+
+    .progress-stats {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .progress-bar-container {
+        margin: 1.5rem 0;
+    }
+
+    .progress-details {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .detail-row {
+        padding: 12px;
+        font-size: 1rem;
+        border-radius: 8px;
+        background: rgba(0, 174, 255, 0.1);
+    }
+
+    /* Completion panel mobile */
+    .completion-panel {
+        margin: 1rem;
+        padding: 1.5rem 1rem;
+        text-align: center;
+    }
+
+    .completion-stats {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin: 2rem 0;
+    }
+
+    .stat {
+        padding: 1.5rem;
+        background: rgba(0, 174, 255, 0.1);
+        border-radius: 12px;
+        border: 1px solid rgba(0, 174, 255, 0.3);
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 1rem;
+    }
+
+    /* Download section mobile */
+    .download-section {
+        margin: 2rem 0;
+    }
+
+    .download-note {
+        font-size: 1rem;
+        margin-top: 1rem;
+        padding: 1rem;
+        background: rgba(0, 174, 255, 0.1);
+        border-radius: 8px;
+    }
+}
+
+/* Tablet portrait adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .logo {
+        height: 200px;
+    }
+
+    .config-panel {
+        margin: 1.5rem;
+        padding: 2rem;
+    }
+
+    .completion-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Two-column form layout for tablets */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+}
+
+/* Touch interaction improvements */
+@media (pointer: coarse) {
+    /* Larger touch targets for all interactive elements */
+    button, 
+    input[type="submit"], 
+    input[type="button"], 
+    .btn,
+    a {
+        min-height: 48px;
+        min-width: 48px;
+    }
+
+    /* Hover effects become tap effects on touch */
+    .btn:active {
+        transform: scale(0.98);
+        transition: transform 0.1s ease;
+    }
+
+    /* Drop zone touch improvements */
+    .drop-zone {
+        border-width: 3px;
+        border-style: dashed;
+        transition: all 0.3s ease;
+    }
+
+    .drop-zone:active {
+        transform: scale(0.99);
+        border-color: #00aeff;
+        background: rgba(0, 174, 255, 0.1);
+    }
+
+    /* Better visual feedback for form controls */
+    input:focus,
+    select:focus {
+        border-width: 3px;
+        box-shadow: 0 0 0 3px rgba(0, 174, 255, 0.3);
+    }
+
+    /* Touch-friendly modals */
+    .error-modal,
+    .resume-modal {
+        margin: 1rem;
+        max-width: calc(100vw - 2rem);
+        max-height: calc(100vh - 2rem);
+    }
+
+    /* Progress bar touch feedback */
+    .progress-bar-container {
+        padding: 4px;
+        border-radius: 12px;
+        border: 2px solid rgba(0, 174, 255, 0.3);
+    }
+}
+
+/* Landscape phone optimization */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+    .logo {
+        height: 80px;
+    }
+
+    .app-header {
+        padding: 1rem 0;
+    }
+
+    .app-header h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .tagline {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+
+    .drop-zone {
+        min-height: 150px;
+        padding: 1rem;
+    }
+
+    .config-panel {
+        padding: 1rem;
+    }
+
+    .config-section {
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    /* Compact form layout for landscape */
+    .form-grid-landscape {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+}
+
+/* iOS Safari specific adjustments */
+@supports (-webkit-touch-callout: none) {
+    /* Fix for iOS viewport height issues */
+    .app {
+        min-height: -webkit-fill-available;
+    }
+
+    /* iOS button styling */
+    .btn {
+        -webkit-appearance: none;
+        border-radius: 12px;
+    }
+
+    /* iOS form styling */
+    input, select {
+        -webkit-appearance: none;
+        border-radius: 12px;
+    }
+
+    /* iOS focus styling */
+    input:focus, select:focus {
+        outline: none;
+        border-color: #00aeff;
+        box-shadow: 0 0 0 3px rgba(0, 174, 255, 0.3);
+    }
+}
+
+/* Android Chrome specific adjustments */
+@media screen and (-webkit-min-device-pixel-ratio: 1) {
+    /* Android button improvements */
+    .btn:active {
+        background-color: rgba(0, 174, 255, 0.8);
+    }
+    
+    /* Android form improvements */
+    input[type="file"] {
+        font-size: 1rem;
+    }
+}
+
+/* High DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2),
+       (min-resolution: 192dpi) {
+    /* Sharper borders and shadows on high DPI */
+    .btn, .config-panel, .drop-zone {
+        border-width: 0.5px;
+    }
+
+    .logo {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+}
+
+/* Dark mode mobile adjustments */
+@media (prefers-color-scheme: dark) {
+    /* Mobile dark mode specific adjustments */
+    .btn {
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .form-group input,
+    .form-group select {
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+}
+
+/* Reduced motion on mobile */
+@media (prefers-reduced-motion: reduce) {
+    .btn:active {
+        transform: none;
+    }
+
+    .drop-zone:active {
+        transform: none;
+    }
+}
+
+/* Accessibility improvements for mobile */
+@media (max-width: 768px) {
+    /* Larger focus indicators on mobile */
+    *:focus {
+        outline: 4px solid #00aeff !important;
+        outline-offset: 3px !important;
+    }
+
+    /* Better contrast on small screens */
+    .help-text {
+        font-size: 1rem;
+        background: rgba(0, 174, 255, 0.1);
+        padding: 8px;
+        border-radius: 6px;
+        margin-top: 8px;
+    }
+
+    /* Screen reader improvements */
+    .sr-only {
+        clip: rect(0, 0, 0, 0);
+        clip-path: inset(50%);
+        height: 1px;
+        overflow: hidden;
+        position: absolute;
+        white-space: nowrap;
+        width: 1px;
+    }
+}
+
+/* Print styles for mobile */
+@media print {
+    .drop-zone, .config-panel, .progress-panel, .completion-panel {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .btn {
+        background: white !important;
+        color: black !important;
+        border: 1px solid black !important;
+    }
+}
+
+/* Swipe gesture support for mobile navigation */
+.swipe-container {
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile loading states */
+@media (max-width: 768px) {
+    .loading::after {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10000;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        font-size: 1.2rem;
+        min-width: 200px;
+        text-align: center;
+    }
+}
+
+/* Mobile error states */
+@media (max-width: 768px) {
+    .error-overlay {
+        padding: 1rem;
+    }
+
+    .error-modal {
+        width: calc(100% - 2rem);
+        max-height: calc(100vh - 2rem);
+        margin: 1rem;
+    }
+
+    .error-actions {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .error-btn {
+        width: 100%;
+        justify-content: center;
+        min-height: 48px;
+        font-size: 1.1rem;
+    }
+}
+
+/* Mobile warning toasts */
+@media (max-width: 768px) {
+    .warning-toast {
+        left: 1rem;
+        right: 1rem;
+        max-width: none;
+        border-radius: 12px;
+    }
+
+    .warning-actions {
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 1rem;
+    }
+
+    .warning-btn {
+        width: 100%;
+        min-height: 44px;
+        font-size: 1rem;
+    }
+}

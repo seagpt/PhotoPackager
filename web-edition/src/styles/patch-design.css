@@ -1,0 +1,647 @@
+/**
+ * PhotoPackager Web Edition - Patch Design Theme
+ * Inspired by the official PhotoPackager patch design
+ * Dark theme with electric blue accents and layered photo metaphors
+ */
+
+/* Reset and base styles - Dark theme */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Liberation Sans', sans-serif;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+    color: #ffffff;
+    min-height: 100vh;
+    line-height: 1.6;
+}
+
+/* Layout */
+#app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-image: 
+        radial-gradient(circle at 20% 80%, rgba(0, 174, 255, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(0, 174, 255, 0.1) 0%, transparent 50%);
+}
+
+/* Header - Patch-inspired design */
+.app-header {
+    background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+    padding: 2rem 0;
+    text-align: center;
+    border-bottom: 3px solid #00aeff;
+    position: relative;
+    box-shadow: 
+        0 4px 20px rgba(0, 174, 255, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.app-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #00aeff, transparent);
+}
+
+.header-content {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.logo {
+    height: 100px;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 4px 8px rgba(0, 174, 255, 0.3));
+}
+
+.app-header h1 {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    letter-spacing: -0.5px;
+}
+
+.tagline {
+    font-size: 1.3rem;
+    color: #00aeff;
+    font-weight: 500;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Main content */
+.main-content {
+    flex: 1;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* Drop Zone - Layered photo stack design */
+.drop-zone {
+    background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+    border: 3px dashed #00aeff;
+    border-radius: 20px;
+    padding: 4rem 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.drop-zone::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #00aeff, #0088cc, #00aeff);
+    border-radius: 20px;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.drop-zone:hover,
+.drop-zone.drag-over {
+    border-color: #ffffff;
+    background: linear-gradient(135deg, #2d3b47 0%, #1e2b37 100%);
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 
+        0 15px 40px rgba(0, 174, 255, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.drop-zone:hover::before,
+.drop-zone.drag-over::before {
+    opacity: 1;
+}
+
+.drop-zone-content {
+    position: relative;
+    z-index: 2;
+}
+
+.drop-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    background: linear-gradient(45deg, #00aeff, #ffffff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 2px 4px rgba(0, 174, 255, 0.5));
+}
+
+.drop-zone h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #ffffff;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.drop-zone p {
+    font-size: 1.2rem;
+    color: #cccccc;
+    margin-bottom: 2rem;
+}
+
+/* Buttons - Electric blue theme */
+.btn {
+    display: inline-block;
+    padding: 14px 28px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.btn:hover::before {
+    left: 100%;
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, #00aeff, #0088cc);
+    color: white;
+    border: 2px solid transparent;
+    box-shadow: 0 4px 15px rgba(0, 174, 255, 0.4);
+}
+
+.btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 174, 255, 0.6);
+    background: linear-gradient(45deg, #0088cc, #006699);
+}
+
+.btn-success {
+    background: linear-gradient(45deg, #00ff88, #00cc66);
+    color: #1a1a1a;
+    border: 2px solid transparent;
+    box-shadow: 0 4px 15px rgba(0, 255, 136, 0.4);
+}
+
+.btn-success:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 255, 136, 0.6);
+}
+
+.btn-secondary {
+    background: linear-gradient(45deg, #666666, #555555);
+    color: white;
+    border: 2px solid #00aeff;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.btn-secondary:hover {
+    transform: translateY(-3px);
+    background: linear-gradient(45deg, #777777, #666666);
+    box-shadow: 0 8px 25px rgba(0, 174, 255, 0.3);
+}
+
+.btn-large {
+    padding: 18px 36px;
+    font-size: 1.2rem;
+}
+
+/* Config Panel - Dark card design */
+.config-panel {
+    background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+    border: 2px solid #00aeff;
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: 
+        0 15px 40px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.config-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #00aeff, transparent);
+    border-radius: 20px 20px 0 0;
+}
+
+.config-section {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid rgba(0, 174, 255, 0.2);
+    position: relative;
+}
+
+.config-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.config-section h3 {
+    font-size: 1.5rem;
+    color: #00aeff;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    letter-spacing: 0.5px;
+}
+
+.config-section h3:before {
+    content: '⚡';
+    margin-right: 0.8rem;
+    font-size: 1.2em;
+    filter: drop-shadow(0 0 4px #00aeff);
+}
+
+/* Form elements - Dark theme */
+.form-group {
+    margin-bottom: 1.8rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.8rem;
+    font-weight: 600;
+    color: #ffffff;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="email"],
+.form-group select {
+    width: 100%;
+    padding: 14px 18px;
+    border: 2px solid #444444;
+    border-radius: 10px;
+    font-size: 1rem;
+    background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+    color: #ffffff;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #00aeff;
+    box-shadow: 
+        0 0 0 3px rgba(0, 174, 255, 0.2),
+        0 4px 12px rgba(0, 174, 255, 0.3);
+    background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+}
+
+.form-group input[type="checkbox"] {
+    margin-right: 0.8rem;
+    transform: scale(1.3);
+    accent-color: #00aeff;
+}
+
+.form-group input[type="range"] {
+    width: calc(100% - 70px);
+    margin-right: 15px;
+    accent-color: #00aeff;
+    background: #444444;
+    border-radius: 10px;
+    height: 8px;
+}
+
+.form-group input[type="range"]::-webkit-slider-thumb {
+    background: linear-gradient(45deg, #00aeff, #ffffff);
+    border: 2px solid #1a1a1a;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 174, 255, 0.5);
+}
+
+/* Progress Panel - High-tech design */
+.progress-panel {
+    background: linear-gradient(135deg, #1f1f1f 0%, #2a2a2a 100%);
+    border: 2px solid #00aeff;
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: 
+        0 15px 40px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.progress-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #00aeff, #ffffff, #00aeff);
+    border-radius: 20px 20px 0 0;
+    animation: progressGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes progressGlow {
+    0% { box-shadow: 0 0 5px rgba(0, 174, 255, 0.5); }
+    100% { box-shadow: 0 0 20px rgba(0, 174, 255, 0.8); }
+}
+
+.progress-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.progress-header h3 {
+    font-size: 1.8rem;
+    color: #00aeff;
+    margin-bottom: 1rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.progress-stats {
+    display: flex;
+    justify-content: space-between;
+    color: #cccccc;
+    font-size: 1rem;
+}
+
+.progress-bar-container {
+    background: linear-gradient(135deg, #1a1a1a, #333333);
+    border: 2px solid #444444;
+    border-radius: 15px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+    position: relative;
+    height: 30px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(45deg, #00aeff, #00ff88, #00aeff);
+    border-radius: 15px;
+    transition: width 0.5s ease;
+    width: 0%;
+    position: relative;
+    box-shadow: 0 0 15px rgba(0, 174, 255, 0.6);
+}
+
+.progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: progressShimmer 2s ease-in-out infinite;
+}
+
+@keyframes progressShimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.progress-text {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.8rem;
+    font-size: 0.9rem;
+    color: #cccccc;
+    font-weight: 600;
+}
+
+.progress-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem;
+    background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+    border: 1px solid #444444;
+    border-radius: 12px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.detail-row:hover {
+    border-color: #00aeff;
+    box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 0 10px rgba(0, 174, 255, 0.3);
+}
+
+/* Completion Panel - Success theme */
+.completion-panel {
+    background: linear-gradient(135deg, #1f2f1f 0%, #2a2a1f 100%);
+    border: 2px solid #00ff88;
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    box-shadow: 
+        0 15px 40px rgba(0, 255, 136, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    text-align: center;
+}
+
+.completion-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #00ff88, transparent);
+    border-radius: 20px 20px 0 0;
+}
+
+.success-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 4px 8px rgba(0, 255, 136, 0.5));
+}
+
+.completion-panel h2 {
+    font-size: 2.2rem;
+    color: #00ff88;
+    margin-bottom: 1rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.completion-panel p {
+    font-size: 1.2rem;
+    color: #cccccc;
+    margin-bottom: 2rem;
+}
+
+.completion-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 2rem;
+    margin: 2rem 0;
+    padding: 2rem;
+    background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+    border: 1px solid #00ff88;
+    border-radius: 15px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.stat {
+    text-align: center;
+}
+
+.stat-value {
+    display: block;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #00aeff;
+    margin-bottom: 0.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #cccccc;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+/* Footer - Minimal dark design */
+.app-footer {
+    background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+    border-top: 2px solid #00aeff;
+    padding: 1.5rem 0;
+    text-align: center;
+    color: #cccccc;
+    font-size: 0.9rem;
+    margin-top: auto;
+}
+
+.app-footer a {
+    color: #00aeff;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.app-footer a:hover {
+    color: #ffffff;
+    text-shadow: 0 0 8px rgba(0, 174, 255, 0.8);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .app-header h1 {
+        font-size: 2.2rem;
+    }
+    
+    .tagline {
+        font-size: 1.1rem;
+    }
+    
+    .main-content {
+        padding: 1rem;
+    }
+    
+    .drop-zone {
+        padding: 2.5rem 1rem;
+    }
+    
+    .config-panel {
+        padding: 2rem;
+    }
+    
+    .progress-details {
+        grid-template-columns: 1fr;
+    }
+    
+    .completion-stats {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+/* Custom scrollbars - Dark theme */
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #00aeff, #0088cc);
+    border-radius: 6px;
+    border: 2px solid #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #0088cc, #006699);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.config-panel,
+.progress-panel,
+.completion-panel {
+    animation: fadeIn 0.6s ease;
+}
+
+/* Loading states */
+.processing .btn {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background: #444444 !important;
+}
+
+.processing .btn:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
