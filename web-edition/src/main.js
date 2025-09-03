@@ -487,7 +487,6 @@ class PhotoPackagerWebApp {
      */
     showCompletion(results) {
         const processingTime = Date.now() - this.startTime;
-        const packageStats = this.packageBuilder.getPackageStats();
         
         // Update completion stats
         document.getElementById('finalFileCount').textContent = results.processed.toString();
@@ -496,7 +495,12 @@ class PhotoPackagerWebApp {
         const seconds = Math.floor((processingTime % 60000) / 1000);
         document.getElementById('finalProcessingTime').textContent = `${minutes}m ${seconds}s`;
         
-        document.getElementById('finalPackageSize').textContent = `${Math.round(this.finalPackage.size / 1024 / 1024)} MB`;
+        // Only show package size if we have a package
+        if (this.finalPackage && this.finalPackage.size) {
+            document.getElementById('finalPackageSize').textContent = `${Math.round(this.finalPackage.size / 1024 / 1024)} MB`;
+        } else {
+            document.getElementById('finalPackageSize').textContent = 'Processing...';
+        }
         
         // Announce completion to screen readers
         if (window.accessibilityManager) {

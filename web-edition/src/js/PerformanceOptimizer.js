@@ -366,7 +366,7 @@ export class PerformanceOptimizer {
                     
                     // Generate result blob
                     canvas.toBlob((blob) => {
-                        cleanup();
+                        // Cleanup is done after we use the blob
                         if (blob) {
                             resolve({
                                 name: file.name,
@@ -375,7 +375,9 @@ export class PerformanceOptimizer {
                                 width: dimensions.width,
                                 height: dimensions.height
                             });
+                            cleanup();
                         } else {
+                            cleanup();
                             reject(new Error('Failed to generate image blob'));
                         }
                     }, 'image/jpeg', settings.optimizedQuality / 100);
