@@ -4,7 +4,7 @@
  * Replicates PhotoPackager's folder structure and packaging
  */
 
-import JSZip from 'jszip';
+// JSZip is loaded via CDN in index.html
 
 export class PackageBuilder {
     constructor(options = {}) {

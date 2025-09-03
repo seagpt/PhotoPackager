@@ -10,16 +10,16 @@ WORKDIR /usr/share/nginx/html
 # Remove default nginx content
 RUN rm -rf /usr/share/nginx/html/*
 
-# Copy all static files (HTML, CSS, JS) from web-edition directory
-COPY web-edition/index.html ./
-COPY web-edition/privacy-policy.html ./
-COPY web-edition/terms-of-service.html ./
-COPY web-edition/LICENSE ./
-COPY web-edition/assets/ ./assets/
-COPY web-edition/src/ ./src/
+# Copy all static files (HTML, CSS, JS)
+COPY index.html ./
+COPY privacy-policy.html ./
+COPY terms-of-service.html ./
+COPY LICENSE ./
+COPY assets/ ./assets/
+COPY src/ ./src/
 
 # Copy custom nginx configuration
-COPY web-edition/nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S photopackager && \
