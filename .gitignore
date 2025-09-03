@@ -95,4 +95,4 @@ tests/out/
 minimal_thread_test.py
 # minimal_thread_test.spec # This was likely for a specific test file, can remain commented or be removed if that test is gone
 # PyInstaller spec files
-*.spec
+*.specweb-edition/node_modules/
