@@ -4,7 +4,7 @@
  * Replicates PhotoPackager's folder structure and packaging
  */
 
-// JSZip is loaded via CDN in index.html
+// JSZip is loaded via CDN in index.html and made available globally
 
 export class PackageBuilder {
     constructor(options = {}) {
@@ -16,7 +16,11 @@ export class PackageBuilder {
             ...options
         };
         
-        this.zip = new JSZip();
+        // Use global JSZip from CDN
+        if (typeof window.JSZip === 'undefined') {
+            throw new Error('JSZip library not loaded. Please ensure JSZip CDN script is included.');
+        }
+        this.zip = new window.JSZip();
         this.packageStats = {
             totalFiles: 0,
             totalSize: 0,
@@ -330,7 +334,7 @@ https://github.com/seagpt/PhotoPackager
 
         // Create separate ZIP for each folder type
         if (processedResults.outputs.originals && processedResults.outputs.originals.length > 0) {
-            const originalsZip = new JSZip();
+            const originalsZip = new window.JSZip();
             const folder = originalsZip.folder(`${packageName} - Export Originals`);
             
             for (const original of processedResults.outputs.originals) {
@@ -352,7 +356,7 @@ https://github.com/seagpt/PhotoPackager
      * Reset package builder for new package
      */
     reset() {
-        this.zip = new JSZip();
+        this.zip = new window.JSZip();
         this.packageStats = {
             totalFiles: 0,
             totalSize: 0,

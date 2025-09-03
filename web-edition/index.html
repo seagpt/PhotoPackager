@@ -13,6 +13,10 @@
     <!-- External Dependencies via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.js"></script>
+    <script>
+        // Make JSZip available globally for ES6 modules
+        window.JSZip = window.JSZip || JSZip;
+    </script>
     
     <!-- Accessibility: Skip to main content -->
     <style>
