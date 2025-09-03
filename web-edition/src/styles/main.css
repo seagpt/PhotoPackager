@@ -87,6 +87,10 @@ body {
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: calc(100vh - 200px); /* Account for header height */
 }
 
 /* Drop Zone - Layered photo stack design */
@@ -378,6 +382,8 @@ body {
     border: 2px solid #00aeff;
     border-radius: 20px;
     padding: 2.5rem;
+    margin: 2rem auto;
+    max-width: 800px;
     box-shadow: 
         0 15px 40px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
