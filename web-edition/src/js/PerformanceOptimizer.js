@@ -358,6 +358,12 @@ export class PerformanceOptimizer {
                     ctx.imageSmoothingQuality = 'medium';
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     
+                    // Store dimensions before cleanup
+                    const dimensions = {
+                        width: canvas.width,
+                        height: canvas.height
+                    };
+                    
                     // Generate result blob
                     canvas.toBlob((blob) => {
                         cleanup();
@@ -366,8 +372,8 @@ export class PerformanceOptimizer {
                                 name: file.name,
                                 size: blob.size,
                                 blob: blob,
-                                width: canvas.width,
-                                height: canvas.height
+                                width: dimensions.width,
+                                height: dimensions.height
                             });
                         } else {
                             reject(new Error('Failed to generate image blob'));
