@@ -358,24 +358,31 @@ export class PerformanceOptimizer {
                     ctx.imageSmoothingQuality = 'medium';
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     
-                    // Store dimensions before cleanup
+                    // Store dimensions before cleanup (with null checks)
                     const dimensions = {
-                        width: canvas.width,
-                        height: canvas.height
+                        width: canvas ? canvas.width : 0,
+                        height: canvas ? canvas.height : 0
                     };
                     
                     // Generate result blob
+                    if (!canvas) {
+                        cleanup();
+                        reject(new Error('Canvas was null before blob generation'));
+                        return;
+                    }
+                    
                     canvas.toBlob((blob) => {
                         // Cleanup is done after we use the blob
                         if (blob) {
-                            resolve({
+                            const result = {
                                 name: file.name,
                                 size: blob.size,
                                 blob: blob,
                                 width: dimensions.width,
                                 height: dimensions.height
-                            });
+                            };
                             cleanup();
+                            resolve(result);
                         } else {
                             cleanup();
                             reject(new Error('Failed to generate image blob'));
@@ -562,4 +569,4 @@ export class PerformanceOptimizer {
 }
 
 // Export singleton instance
-export const performanceOptimizer = new PerformanceOptimizer();
+export const performanceOptimizer = new PerformanceOptimizer();// Cache bust: 1756887424
