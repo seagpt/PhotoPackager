@@ -1,8 +1,37 @@
 /**
+ * PhotoPackager Web Edition - UI Validation System
+ * 
+ * Copyright (c) 2025 DropShock Digital LLC
+ * Created by Steven Seagondollar
+ * 
+ * Licensed under the MIT License:
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * 
+ * This file is part of PhotoPackager Web Edition, an open-source photo processing tool.
+ * 
  * UIValidator.js
  * Comprehensive UI validation and testing utilities
  * Ensures all button combinations and interactions work correctly
  */
+
+import { config } from './Config.js';
 
 export class UIValidator {
     constructor() {
@@ -14,7 +43,7 @@ export class UIValidator {
      * Run comprehensive UI validation
      */
     async runFullValidation() {
-        console.log('🔍 Starting comprehensive UI validation...');
+        config.log('🔍 Starting comprehensive UI validation...');
         
         try {
             await this.validateAllElements();
@@ -27,7 +56,7 @@ export class UIValidator {
             this.reportResults();
             return this.failedTests.length === 0;
         } catch (error) {
-            console.error('UI Validation failed:', error);
+            config.error('UI Validation failed:', error);
             return false;
         }
     }
@@ -275,22 +304,22 @@ export class UIValidator {
      * Report validation results
      */
     reportResults() {
-        console.log('\n🔍 UI Validation Results:');
-        console.log(`✅ Passed Tests: ${this.testResults.length}`);
-        console.log(`❌ Failed Tests: ${this.failedTests.length}`);
+        config.log('\n🔍 UI Validation Results:');
+        config.log(`✅ Passed Tests: ${this.testResults.length}`);
+        config.log(`❌ Failed Tests: ${this.failedTests.length}`);
         
         if (this.failedTests.length > 0) {
-            console.log('\n❌ Failed Tests:');
-            this.failedTests.forEach(test => console.log(test));
+            config.log('\n❌ Failed Tests:');
+            this.failedTests.forEach(test => config.log(test));
         }
         
         if (this.testResults.length > 0) {
-            console.log('\n✅ Passed Tests:');
-            this.testResults.forEach(test => console.log(test));
+            config.log('\n✅ Passed Tests:');
+            this.testResults.forEach(test => config.log(test));
         }
         
         const passRate = (this.testResults.length / (this.testResults.length + this.failedTests.length)) * 100;
-        console.log(`\n📊 Pass Rate: ${passRate.toFixed(1)}%`);
+        config.log(`\n📊 Pass Rate: ${passRate.toFixed(1)}%`);
     }
 
     /**

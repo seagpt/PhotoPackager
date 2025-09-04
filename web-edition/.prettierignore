@@ -1,0 +1,80 @@
+# Dependencies
+node_modules/
+vendor/
+lib/piexifjs.js
+lib/jszip.min.js
+
+# Build outputs
+dist/
+build/
+out/
+public/
+coverage/
+
+# Version control
+.git/
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Minified files
+*.min.js
+*.min.css
+
+# Generated files
+*.generated.*
+*-generated.*
+
+# Data files
+*.json
+*.csv
+*.tsv
+
+# Binary files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.svg
+*.ico
+*.woff
+*.woff2
+*.ttf
+*.eot
+*.pdf
+*.zip
+*.tar.gz
+
+# Documentation
+CHANGELOG.md
+LICENSE
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Environment files
+.env*
+
+# IDE files
+.vscode/
+.idea/
+
+# Test files
+__tests__/
+*.test.js
+*.spec.js
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.temp

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhotoPackager EXIF Orientation Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a1a;
+            color: #00aeff;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #2a2a2a;
+            border: 1px solid #00aeff;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .test-pass { color: #00ff00; }
+        .test-fail { color: #ff0000; }
+        .test-warn { color: #ffaa00; }
+        button {
+            background: #00aeff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            margin: 0.5rem;
+            cursor: pointer;
+        }
+        button:hover { background: #0088cc; }
+        #console { 
+            background: #000; 
+            color: #0f0; 
+            padding: 1rem; 
+            border-radius: 5px;
+            height: 300px; 
+            overflow-y: scroll; 
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        .status { font-weight: bold; }
+        .orientation-demo {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .orientation-sample {
+            background: #333;
+            padding: 1rem;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .orientation-sample canvas {
+            border: 1px solid #555;
+            margin: 0.5rem 0;
+        }
+        input[type="file"] {
+            background: #333;
+            color: #00aeff;
+            border: 1px solid #00aeff;
+            padding: 0.5rem;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>📸 PhotoPackager EXIF Orientation Tests</h1>
+    
+    <div class="test-section">
+        <h2>🎯 HIGH-009: EXIF Orientation Handling</h2>
+        <div id="exifStatus" class="status test-warn">Testing...</div>
+        <button onclick="testExifParsing()">Test EXIF Parsing</button>
+        <button onclick="testOrientationTransforms()">Test Orientation Transforms</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📁 File Upload Test</h2>
+        <input type="file" id="fileInput" accept="image/*" multiple>
+        <button onclick="testRealFiles()">Test Selected Files</button>
+        <div id="fileResults"></div>
+        <div class="orientation-demo" id="orientationDemo"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔬 Synthetic EXIF Test</h2>
+        <div id="syntheticStatus" class="status test-warn">Ready...</div>
+        <button onclick="testSyntheticExif()">Test Synthetic EXIF Data</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Console Output</h2>
+        <div id="console"></div>
+        <button onclick="clearConsole()">Clear Console</button>
+    </div>
+
+    <script type="module">
+        import { ImageProcessor } from './src/js/ImageProcessor.js';
+        import { logger } from './src/js/Logger.js';
+
+        let processor = null;
+
+        function log(message, type = 'info') {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff0000' : type === 'success' ? '#00ff00' : '#0f0';
+            console.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+        }
+        
+        function updateStatus(elementId, status, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = status;
+            element.className = `status test-${type}`;
+        }
+
+        function createSyntheticJPEG(orientation = 1) {
+            // Create minimal JPEG with EXIF orientation tag
+            const jpegHeader = new Uint8Array([
+                0xFF, 0xD8, // SOI
+                0xFF, 0xE1, // APP1
+                0x00, 0x2C, // Length (44 bytes)
+                0x45, 0x78, 0x69, 0x66, 0x00, 0x00, // "Exif\0\0"
+                0x4D, 0x4D, // Big endian
+                0x00, 0x2A, // TIFF magic
+                0x00, 0x00, 0x00, 0x08, // IFD offset
+                0x00, 0x01, // 1 entry
+                0x01, 0x12, // Orientation tag
+                0x00, 0x03, // Short type
+                0x00, 0x00, 0x00, 0x01, // Count
+                0x00, orientation, 0x00, 0x00, // Orientation value
+                0x00, 0x00, 0x00, 0x00, // Next IFD
+                0xFF, 0xD9 // EOI
+            ]);
+            
+            return new Blob([jpegHeader], { type: 'image/jpeg' });
+        }
+
+        async function testExifParsing() {
+            log('Testing EXIF parsing functionality...');
+            
+            try {
+                processor = new ImageProcessor();
+                
+                // Test each orientation value
+                let passed = 0;
+                let failed = 0;
+                
+                for (let orientation = 1; orientation <= 8; orientation++) {
+                    const syntheticFile = createSyntheticJPEG(orientation);
+                    const detectedOrientation = await processor.getImageOrientation(syntheticFile);
+                    
+                    if (detectedOrientation === orientation) {
+                        log(`✓ Orientation ${orientation}: Correctly detected`, 'success');
+                        passed++;
+                    } else {
+                        log(`✗ Orientation ${orientation}: Expected ${orientation}, got ${detectedOrientation}`, 'error');
+                        failed++;
+                    }
+                }
+                
+                // Test invalid file
+                const invalidFile = new Blob(['not a jpeg'], { type: 'text/plain' });
+                const defaultOrientation = await processor.getImageOrientation(invalidFile);
+                if (defaultOrientation === 1) {
+                    log('✓ Invalid file: Correctly defaults to orientation 1', 'success');
+                    passed++;
+                } else {
+                    log(`✗ Invalid file: Expected 1, got ${defaultOrientation}`, 'error');
+                    failed++;
+                }
+                
+                const score = Math.round((passed / (passed + failed)) * 100);
+                log(`EXIF parsing test: ${passed} passed, ${failed} failed (${score}%)`);
+                
+                if (failed === 0) {
+                    updateStatus('exifStatus', '✅ EXIF Parsing Working', 'pass');
+                } else {
+                    updateStatus('exifStatus', `⚠️ EXIF Parsing Partial (${score}%)`, 'warn');
+                }
+                
+            } catch (error) {
+                log(`EXIF parsing test failed: ${error.message}`, 'error');
+                updateStatus('exifStatus', '❌ EXIF Parsing Failed', 'fail');
+            }
+        }
+
+        async function testOrientationTransforms() {
+            log('Testing orientation transform logic...');
+            
+            try {
+                if (!processor) processor = new ImageProcessor();
+                
+                // Create test canvas and context
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 100;
+                canvas.height = 200;
+                
+                // Create test image (gradient to see transforms)
+                const testImg = new Image();
+                testImg.width = 100;
+                testImg.height = 200;
+                
+                let transformsWorked = 0;
+                
+                // Test each orientation transform
+                for (let orientation = 1; orientation <= 8; orientation++) {
+                    try {
+                        // Reset canvas
+                        canvas.width = orientation > 5 ? 200 : 100;
+                        canvas.height = orientation > 5 ? 100 : 200;
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+                        
+                        // Apply orientation transform
+                        await processor.applyImageOrientation(ctx, testImg, canvas, null, orientation);
+                        
+                        log(`✓ Transform ${orientation}: Applied successfully`);
+                        transformsWorked++;
+                        
+                    } catch (error) {
+                        log(`✗ Transform ${orientation}: Failed - ${error.message}`, 'error');
+                    }
+                }
+                
+                const score = Math.round((transformsWorked / 8) * 100);
+                log(`Orientation transforms: ${transformsWorked}/8 worked (${score}%)`);
+                
+                if (transformsWorked === 8) {
+                    updateStatus('exifStatus', '✅ EXIF Orientation Working', 'pass');
+                } else {
+                    updateStatus('exifStatus', `⚠️ Orientation Partial (${score}%)`, 'warn');
+                }
+                
+            } catch (error) {
+                log(`Orientation transform test failed: ${error.message}`, 'error');
+                updateStatus('exifStatus', '❌ Orientation Transforms Failed', 'fail');
+            }
+        }
+
+        async function testRealFiles() {
+            const fileInput = document.getElementById('fileInput');
+            const files = fileInput.files;
+            
+            if (files.length === 0) {
+                log('Please select some image files first', 'warn');
+                return;
+            }
+            
+            log(`Testing ${files.length} selected files...`);
+            
+            if (!processor) processor = new ImageProcessor();
+            
+            const resultsDiv = document.getElementById('fileResults');
+            const demoDiv = document.getElementById('orientationDemo');
+            resultsDiv.innerHTML = '';
+            demoDiv.innerHTML = '';
+            
+            for (let file of files) {
+                try {
+                    log(`Processing: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+                    
+                    const orientation = await processor.getImageOrientation(file);
+                    log(`  - EXIF Orientation: ${orientation}`);
+                    
+                    // Create visual demo
+                    const demoDiv = document.createElement('div');
+                    demoDiv.className = 'orientation-sample';
+                    demoDiv.innerHTML = `
+                        <h4>${file.name}</h4>
+                        <p>Orientation: ${orientation}</p>
+                        <p>Size: ${file.width || 'Unknown'}x${file.height || 'Unknown'}</p>
+                    `;
+                    
+                    document.getElementById('orientationDemo').appendChild(demoDiv);
+                    
+                } catch (error) {
+                    log(`  - Error: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function testSyntheticExif() {
+            log('Testing synthetic EXIF data creation...');
+            
+            try {
+                updateStatus('syntheticStatus', 'Testing...', 'warn');
+                
+                if (!processor) processor = new ImageProcessor();
+                
+                let passed = 0;
+                let total = 8;
+                
+                for (let orientation = 1; orientation <= 8; orientation++) {
+                    const syntheticFile = createSyntheticJPEG(orientation);
+                    const detected = await processor.getImageOrientation(syntheticFile);
+                    
+                    if (detected === orientation) {
+                        passed++;
+                        log(`✓ Synthetic orientation ${orientation}: Correct`);
+                    } else {
+                        log(`✗ Synthetic orientation ${orientation}: Expected ${orientation}, got ${detected}`, 'error');
+                    }
+                }
+                
+                const score = Math.round((passed / total) * 100);
+                
+                if (passed === total) {
+                    updateStatus('syntheticStatus', '✅ Synthetic EXIF Working', 'pass');
+                    log('All synthetic EXIF tests passed!', 'success');
+                } else {
+                    updateStatus('syntheticStatus', `⚠️ Synthetic EXIF Partial (${score}%)`, 'warn');
+                    log(`Synthetic EXIF: ${passed}/${total} passed (${score}%)`, 'warn');
+                }
+                
+            } catch (error) {
+                log(`Synthetic EXIF test failed: ${error.message}`, 'error');
+                updateStatus('syntheticStatus', '❌ Synthetic EXIF Failed', 'fail');
+            }
+        }
+
+        // Make functions globally available
+        window.testExifParsing = testExifParsing;
+        window.testOrientationTransforms = testOrientationTransforms;
+        window.testRealFiles = testRealFiles;
+        window.testSyntheticExif = testSyntheticExif;
+        window.clearConsole = clearConsole;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            log('PhotoPackager EXIF Orientation Test initialized');
+            
+            // Auto-run basic test
+            setTimeout(() => {
+                log('Auto-running EXIF parsing test...');
+                testExifParsing();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

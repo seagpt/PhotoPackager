@@ -1,0 +1,121 @@
+# EditorConfig is awesome: https://EditorConfig.org
+# Top-most EditorConfig file
+root = true
+
+# Universal settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+# JavaScript and TypeScript files
+[*.{js,jsx,ts,tsx,mjs,cjs}]
+indent_size = 4
+max_line_length = 100
+
+# JSON files
+[*.json]
+indent_size = 2
+max_line_length = 80
+
+# Package files
+[package*.json]
+indent_size = 2
+
+# HTML files
+[*.{html,htm}]
+indent_size = 2
+max_line_length = 120
+
+# CSS and preprocessors
+[*.{css,scss,sass,less}]
+indent_size = 2
+max_line_length = 100
+
+# YAML files
+[*.{yml,yaml}]
+indent_size = 2
+max_line_length = 80
+
+# Markdown files
+[*.{md,markdown}]
+trim_trailing_whitespace = false
+max_line_length = 80
+
+# Configuration files
+[.*rc]
+indent_size = 2
+
+# Shell scripts
+[*.{sh,bash}]
+indent_size = 2
+
+# Docker files
+[{Dockerfile,Dockerfile.*}]
+indent_size = 2
+
+# Makefiles (tabs required)
+[{Makefile,makefile,GNUmakefile}]
+indent_style = tab
+indent_size = 4
+
+# Git files
+[{.gitignore,.gitattributes}]
+indent_size = 2
+
+# Environment files
+[.env*]
+indent_size = 2
+
+# XML files
+[*.{xml,svg}]
+indent_size = 2
+
+# Python files (if any)
+[*.py]
+indent_size = 4
+max_line_length = 88
+
+# Ruby files (if any)
+[*.rb]
+indent_size = 2
+
+# Go files (if any)
+[*.go]
+indent_style = tab
+indent_size = 4
+
+# Rust files (if any)
+[*.rs]
+indent_size = 4
+max_line_length = 100
+
+# C/C++ files (if any)
+[*.{c,cpp,cc,h,hpp}]
+indent_size = 4
+max_line_length = 80
+
+# Java files (if any)
+[*.java]
+indent_size = 4
+max_line_length = 100
+
+# PHP files (if any)
+[*.php]
+indent_size = 4
+max_line_length = 120
+
+# Special PhotoPackager conventions
+[src/**/*.js]
+indent_size = 4
+quote_type = single
+
+[src/**/*.css]
+indent_size = 2
+quote_type = double
+
+[test/**/*.js]
+indent_size = 4
+quote_type = single

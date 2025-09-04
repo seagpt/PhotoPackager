@@ -1,8 +1,38 @@
 /**
+ * PhotoPackager Web Edition - Progress Persistence System
+ * 
+ * Copyright (c) 2025 DropShock Digital LLC
+ * Created by Steven Seagondollar
+ * 
+ * Licensed under the MIT License:
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * 
+ * This file is part of PhotoPackager Web Edition, an open-source photo processing tool.
+ * 
  * ProgressPersistence.js
  * Save and restore processing progress using IndexedDB
  * Allows users to resume interrupted processing sessions
  */
+
+import { config } from './Config.js';
+import { logger } from './Logger.js';
 
 export class ProgressPersistence {
     constructor() {
@@ -22,48 +52,243 @@ export class ProgressPersistence {
      */
     async initializeDB() {
         try {
+            // Check if IndexedDB is available
+            if (!window.indexedDB) {
+                throw new Error('IndexedDB not supported');
+            }
+
             this.db = await this.openDB();
-            console.log('ProgressPersistence initialized successfully');
+            config.log('ProgressPersistence initialized successfully');
+            
+            // Test the database connection
+            await this.testConnection();
+            
         } catch (error) {
-            console.error('Failed to initialize ProgressPersistence:', error);
+            logger.error('Failed to initialize ProgressPersistence:', error);
+            this.handleIndexedDBError(error);
             // Fall back to localStorage for basic functionality
             this.useFallback = true;
+            
+            // Notify user if not in private browsing
+            if (error.name === 'QuotaExceededError') {
+                this.showStorageWarning('Storage quota exceeded. Resume functionality will be limited.');
+            } else if (error.message.includes('private')) {
+                this.showStorageWarning('Private browsing detected. Resume functionality disabled.');
+            }
+        }
+    }
+
+    /**
+     * Test IndexedDB connection
+     */
+    async testConnection() {
+        if (!this.db) return;
+        
+        try {
+            const transaction = this.db.transaction([this.storeName], 'readonly');
+            const store = transaction.objectStore(this.storeName);
+            
+            // Add transaction error handling
+            transaction.onerror = (event) => {
+                logger.error('Transaction error during test:', event.target.error);
+            };
+            
+            // Attempt a simple operation
+            await new Promise((resolve, reject) => {
+                const request = store.count();
+                
+                // Add timeout for hanging transactions
+                const timeout = setTimeout(() => {
+                    reject(new Error('IndexedDB connection test timed out'));
+                }, 5000);
+                
+                request.onsuccess = () => {
+                    clearTimeout(timeout);
+                    resolve();
+                };
+                request.onerror = () => {
+                    clearTimeout(timeout);
+                    reject(request.error);
+                };
+            });
+            
+            config.log('IndexedDB connection test passed');
+        } catch (error) {
+            // Enhance error detection for common scenarios
+            if (error.name === 'SecurityError' || error.message.includes('private')) {
+                throw new Error('Private browsing mode detected - IndexedDB disabled');
+            } else if (error.name === 'QuotaExceededError') {
+                throw new Error('Storage quota exceeded - cannot use IndexedDB');
+            } else {
+                throw new Error(`IndexedDB connection test failed: ${error.message}`);
+            }
+        }
+    }
+
+    /**
+     * Handle IndexedDB specific errors
+     */
+    handleIndexedDBError(error) {
+        const errorTypes = {
+            'UnknownError': 'IndexedDB encountered an unknown error',
+            'DataError': 'Invalid data provided to IndexedDB',
+            'InvalidStateError': 'IndexedDB is in an invalid state',
+            'NotFoundError': 'IndexedDB object not found',
+            'QuotaExceededError': 'Storage quota exceeded',
+            'VersionError': 'IndexedDB version mismatch',
+            'AbortError': 'IndexedDB transaction was aborted',
+            'ConstraintError': 'IndexedDB constraint violation',
+            'TimeoutError': 'IndexedDB operation timed out'
+        };
+
+        const friendlyMessage = errorTypes[error.name] || `IndexedDB error: ${error.message}`;
+        logger.warn(friendlyMessage, error);
+        
+        // Track error for analytics
+        if (window.analytics) {
+            window.analytics.trackError('indexeddb_error', error.name || 'unknown');
+        }
+    }
+
+    /**
+     * HIGH-010: Determine if an error is transient and worth retrying
+     */
+    isTransientError(error) {
+        const transientErrorNames = [
+            'AbortError',           // Transaction was aborted
+            'TimeoutError',         // Operation timed out
+            'TransactionInactiveError', // Transaction is no longer active
+            'UnknownError',         // Unknown error (could be temporary)
+        ];
+        
+        const transientMessages = [
+            'network error',
+            'connection lost',
+            'timeout',
+            'busy',
+            'locked'
+        ];
+        
+        // Check error name
+        if (transientErrorNames.includes(error.name)) {
+            return true;
+        }
+        
+        // Check error message for transient patterns
+        const errorMessage = (error.message || '').toLowerCase();
+        return transientMessages.some(pattern => errorMessage.includes(pattern));
+    }
+
+    /**
+     * Show storage warning to user
+     */
+    showStorageWarning(message) {
+        if (window.errorHandler) {
+            window.errorHandler.showWarning('Resume Functionality Limited', message, [
+                { text: 'Continue', action: () => {} }
+            ]);
         }
     }
 
     /**
      * Open IndexedDB connection
+     * HIGH-010: Enhanced with timeout, upgrade error handling, and connection validation
      */
     openDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, this.dbVersion);
             
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve(request.result);
+            // HIGH-010: Add timeout protection for database opening
+            const timeout = setTimeout(() => {
+                logger.error('IndexedDB open operation timed out');
+                reject(new Error('Database open operation timed out after 15 seconds'));
+            }, 15000);
             
-            request.onupgradeneeded = (event) => {
+            request.onerror = (event) => {
+                clearTimeout(timeout);
+                const error = event.target.error || new Error('Unknown IndexedDB open error');
+                logger.error('IndexedDB open failed:', error);
+                this.handleIndexedDBError(error);
+                reject(error);
+            };
+            
+            request.onsuccess = (event) => {
+                clearTimeout(timeout);
                 const db = event.target.result;
                 
-                // Create main progress store
-                const progressStore = db.createObjectStore(this.storeName, { 
-                    keyPath: 'sessionId' 
-                });
+                // HIGH-010: Add connection validation and error event listeners
+                db.onerror = (errorEvent) => {
+                    logger.error('Database error after opening:', errorEvent.target.error);
+                    this.handleIndexedDBError(errorEvent.target.error);
+                };
                 
-                progressStore.createIndex('timestamp', 'timestamp', { unique: false });
-                progressStore.createIndex('status', 'status', { unique: false });
+                db.onversionchange = () => {
+                    logger.warn('Database version changed by another tab, closing connection');
+                    db.close();
+                };
                 
-                // Create file chunks store for large file data
-                const chunksStore = db.createObjectStore('fileChunks', { 
-                    keyPath: ['sessionId', 'fileIndex'] 
-                });
+                // HIGH-010: Validate database structure
+                try {
+                    if (!db.objectStoreNames.contains(this.storeName)) {
+                        throw new Error(`Required object store '${this.storeName}' not found`);
+                    }
+                    
+                    logger.info('IndexedDB connection established and validated');
+                    resolve(db);
+                } catch (validationError) {
+                    logger.error('Database validation failed:', validationError);
+                    db.close();
+                    reject(validationError);
+                }
+            };
+            
+            request.onupgradeneeded = (event) => {
+                clearTimeout(timeout);
+                const db = event.target.result;
+                
+                try {
+                    logger.info(`Upgrading database from version ${event.oldVersion} to ${event.newVersion}`);
+                    
+                    // HIGH-010: Safe object store creation with error handling
+                    if (!db.objectStoreNames.contains(this.storeName)) {
+                        const progressStore = db.createObjectStore(this.storeName, { 
+                            keyPath: 'sessionId' 
+                        });
+                        
+                        progressStore.createIndex('timestamp', 'timestamp', { unique: false });
+                        progressStore.createIndex('status', 'status', { unique: false });
+                        logger.info('Created progress object store');
+                    }
+                    
+                    // Create file chunks store for large file data
+                    if (!db.objectStoreNames.contains('fileChunks')) {
+                        const chunksStore = db.createObjectStore('fileChunks', { 
+                            keyPath: ['sessionId', 'fileIndex'] 
+                        });
+                        logger.info('Created fileChunks object store');
+                    }
+                    
+                } catch (upgradeError) {
+                    logger.error('Database upgrade failed:', upgradeError);
+                    // The transaction will automatically rollback on error
+                    // Let the error bubble up to onsuccess/onerror handlers
+                    throw upgradeError;
+                }
+            };
+            
+            // HIGH-010: Handle blocked events (when other tabs have the database open)
+            request.onblocked = () => {
+                logger.warn('Database upgrade blocked by open connections in other tabs');
+                // Note: We could show a user message here asking them to close other tabs
             };
         });
     }
 
     /**
      * Save current processing progress
+     * HIGH-010: Added retry capability for transient errors
      */
-    async saveProgress(progressData) {
+    async saveProgress(progressData, retries = 0) {
         if (!this.db && !this.useFallback) return false;
 
         const sessionData = {
@@ -92,26 +317,67 @@ export class ProgressPersistence {
             const transaction = this.db.transaction([this.storeName], 'readwrite');
             const store = transaction.objectStore(this.storeName);
             
+            // Add transaction error handling
+            transaction.onerror = (event) => {
+                logger.error('Transaction error during save:', event.target.error);
+            };
+            transaction.onabort = (event) => {
+                logger.warn('Transaction aborted during save:', event.target.error);
+            };
+            
             await new Promise((resolve, reject) => {
                 const request = store.put(sessionData);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
+                
+                // Add timeout protection
+                const timeout = setTimeout(() => {
+                    reject(new Error('IndexedDB save operation timed out'));
+                }, 10000); // 10 second timeout
+                
+                request.onsuccess = () => {
+                    clearTimeout(timeout);
+                    resolve(request.result);
+                };
+                request.onerror = () => {
+                    clearTimeout(timeout);
+                    reject(request.error);
+                };
             });
 
             this.currentSessionId = sessionData.sessionId;
-            console.log(`Progress saved for session ${this.currentSessionId}`);
+            config.log(`Progress saved for session ${this.currentSessionId}`);
             return true;
 
         } catch (error) {
-            console.error('Failed to save progress:', error);
+            logger.error('Failed to save progress:', error);
+            this.handleIndexedDBError(error);
+            
+            // HIGH-010: Retry logic for transient errors
+            if (this.isTransientError(error) && retries < 2) {
+                logger.info(`Retrying save operation (attempt ${retries + 2}/3)`);
+                await new Promise(resolve => setTimeout(resolve, 1000 * (retries + 1))); // Exponential backoff
+                return this.saveProgress(sessionData, retries + 1);
+            }
+            
+            // Attempt fallback save to localStorage
+            try {
+                const fallbackResult = await this.saveFallback(sessionData);
+                if (fallbackResult) {
+                    logger.warn('Saved progress to fallback storage');
+                    return true;
+                }
+            } catch (fallbackError) {
+                logger.error('Fallback save also failed:', fallbackError);
+            }
+            
             return false;
         }
     }
 
     /**
      * Load saved progress by session ID
+     * HIGH-010: Added retry capability for transient errors
      */
-    async loadProgress(sessionId = null) {
+    async loadProgress(sessionId = null, retries = 0) {
         if (!this.db && !this.useFallback) return null;
 
         if (this.useFallback) {
@@ -121,6 +387,14 @@ export class ProgressPersistence {
         try {
             const transaction = this.db.transaction([this.storeName], 'readonly');
             const store = transaction.objectStore(this.storeName);
+            
+            // Add transaction error handling
+            transaction.onerror = (event) => {
+                logger.error('Transaction error during load:', event.target.error);
+            };
+            transaction.onabort = (event) => {
+                logger.warn('Transaction aborted during load:', event.target.error);
+            };
             
             let request;
             if (sessionId) {
@@ -132,7 +406,13 @@ export class ProgressPersistence {
             }
 
             return new Promise((resolve, reject) => {
+                // Add timeout protection
+                const timeout = setTimeout(() => {
+                    reject(new Error('IndexedDB load operation timed out'));
+                }, 10000); // 10 second timeout
+                
                 request.onsuccess = (event) => {
+                    clearTimeout(timeout);
                     if (sessionId) {
                         resolve(event.target.result);
                     } else {
@@ -140,11 +420,34 @@ export class ProgressPersistence {
                         resolve(cursor ? cursor.value : null);
                     }
                 };
-                request.onerror = () => reject(request.error);
+                request.onerror = () => {
+                    clearTimeout(timeout);
+                    reject(request.error);
+                };
             });
 
         } catch (error) {
-            console.error('Failed to load progress:', error);
+            logger.error('Failed to load progress:', error);
+            this.handleIndexedDBError(error);
+            
+            // HIGH-010: Retry logic for transient errors
+            if (this.isTransientError(error) && retries < 2) {
+                logger.info(`Retrying load operation (attempt ${retries + 2}/3)`);
+                await new Promise(resolve => setTimeout(resolve, 1000 * (retries + 1))); // Exponential backoff
+                return this.loadProgress(sessionId, retries + 1);
+            }
+            
+            // Attempt fallback load from localStorage
+            try {
+                const fallbackResult = await this.loadFallback(sessionId);
+                if (fallbackResult) {
+                    logger.warn('Loaded progress from fallback storage');
+                    return fallbackResult;
+                }
+            } catch (fallbackError) {
+                logger.error('Fallback load also failed:', fallbackError);
+            }
+            
             return null;
         }
     }
@@ -174,7 +477,7 @@ export class ProgressPersistence {
             });
 
         } catch (error) {
-            console.error('Failed to get all sessions:', error);
+            logger.error('Failed to get all sessions:', error);
             return [];
         }
     }
@@ -209,11 +512,11 @@ export class ProgressPersistence {
                 request.onerror = () => reject(request.error);
             });
 
-            console.log(`Session ${sessionId} deleted`);
+            config.log(`Session ${sessionId} deleted`);
             return true;
 
         } catch (error) {
-            console.error('Failed to delete session:', error);
+            logger.error('Failed to delete session:', error);
             return false;
         }
     }
@@ -233,7 +536,7 @@ export class ProgressPersistence {
             }
         }, this.autosaveDelay);
         
-        console.log('Autosave started');
+        config.log('Autosave started');
     }
 
     /**
@@ -243,7 +546,7 @@ export class ProgressPersistence {
         if (this.autosaveInterval) {
             clearInterval(this.autosaveInterval);
             this.autosaveInterval = null;
-            console.log('Autosave stopped');
+            config.log('Autosave stopped');
         }
     }
 
@@ -317,7 +620,7 @@ export class ProgressPersistence {
             await this.deleteSession(session.sessionId);
         }
 
-        console.log(`Cleaned up ${oldSessions.length} old sessions`);
+        config.log(`Cleaned up ${oldSessions.length} old sessions`);
         return oldSessions.length;
     }
 
@@ -352,7 +655,7 @@ export class ProgressPersistence {
             localStorage.setItem(key, JSON.stringify(sessionData));
             return true;
         } catch (error) {
-            console.error('Fallback save failed:', error);
+            logger.error('Fallback save failed:', error);
             return false;
         }
     }
@@ -382,7 +685,7 @@ export class ProgressPersistence {
                 return mostRecentSession;
             }
         } catch (error) {
-            console.error('Fallback load failed:', error);
+            logger.error('Fallback load failed:', error);
             return null;
         }
     }
@@ -402,7 +705,7 @@ export class ProgressPersistence {
             
             return sessions.sort((a, b) => b.timestamp - a.timestamp);
         } catch (error) {
-            console.error('Fallback get all sessions failed:', error);
+            logger.error('Fallback get all sessions failed:', error);
             return [];
         }
     }
@@ -413,7 +716,7 @@ export class ProgressPersistence {
             localStorage.removeItem(key);
             return true;
         } catch (error) {
-            console.error('Fallback delete failed:', error);
+            logger.error('Fallback delete failed:', error);
             return false;
         }
     }

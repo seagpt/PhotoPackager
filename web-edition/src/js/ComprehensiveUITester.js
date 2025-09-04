@@ -1,8 +1,37 @@
 /**
+ * PhotoPackager Web Edition - Comprehensive UI Testing System
+ * 
+ * Copyright (c) 2025 DropShock Digital LLC
+ * Created by Steven Seagondollar
+ * 
+ * Licensed under the MIT License:
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * 
+ * This file is part of PhotoPackager Web Edition, an open-source photo processing tool.
+ * 
  * ComprehensiveUITester.js
  * Tests every single button, input, and combination in the PhotoPackager interface
  * Ensures 100% reliability before production deployment
  */
+
+import { config } from './Config.js';
 
 export class ComprehensiveUITester {
     constructor() {
@@ -18,8 +47,8 @@ export class ComprehensiveUITester {
      * Run complete comprehensive UI testing
      */
     async runAllTests() {
-        console.log('🚀 Starting comprehensive UI testing...');
-        console.log('Testing 47 interactive elements across 500+ scenarios...\n');
+        config.log('🚀 Starting comprehensive UI testing...');
+        config.log('Testing 47 interactive elements across 500+ scenarios...\n');
 
         try {
             // Store original values
@@ -49,7 +78,7 @@ export class ComprehensiveUITester {
             return this.testResults.failed.length === 0;
             
         } catch (error) {
-            console.error('❌ Comprehensive testing failed:', error);
+            config.error('❌ Comprehensive testing failed:', error);
             this.testResults.failed.push(`Critical test failure: ${error.message}`);
             return false;
         }
@@ -59,7 +88,7 @@ export class ComprehensiveUITester {
      * Test all primary action buttons
      */
     async testPrimaryButtons() {
-        console.log('🔘 Testing Primary Action Buttons...');
+        config.log('🔘 Testing Primary Action Buttons...');
         
         const buttons = [
             { id: 'selectFolderBtn', name: 'Select Folder Button' },
@@ -108,7 +137,7 @@ export class ComprehensiveUITester {
      * Test all checkboxes individually
      */
     async testCheckboxes() {
-        console.log('☑️ Testing All Checkboxes...');
+        config.log('☑️ Testing All Checkboxes...');
         
         const checkboxes = [
             'includeOriginals', 'includeRaw',
@@ -153,7 +182,7 @@ export class ComprehensiveUITester {
      * Test all dropdown/select elements
      */
     async testDropdowns() {
-        console.log('📋 Testing All Dropdowns...');
+        config.log('📋 Testing All Dropdowns...');
         
         const dropdowns = [
             { 
@@ -210,7 +239,7 @@ export class ComprehensiveUITester {
      * Test range sliders
      */
     async testRangeSliders() {
-        console.log('🎚️ Testing Range Sliders...');
+        config.log('🎚️ Testing Range Sliders...');
         
         const sliders = [
             { id: 'optimizedQuality', min: 60, max: 95, name: 'Optimized Quality' },
@@ -273,7 +302,7 @@ export class ComprehensiveUITester {
      * Test text input fields
      */
     async testTextInputs() {
-        console.log('📝 Testing Text Inputs...');
+        config.log('📝 Testing Text Inputs...');
         
         const inputs = [
             { id: 'projectName', type: 'text', required: true, name: 'Project Name' },
@@ -339,7 +368,7 @@ export class ComprehensiveUITester {
      * Test drag and drop interactions
      */
     async testDragDropInteractions() {
-        console.log('🖱️ Testing Drag & Drop...');
+        config.log('🖱️ Testing Drag & Drop...');
         
         const dropZone = document.getElementById('dropZone');
         
@@ -377,7 +406,7 @@ export class ComprehensiveUITester {
      * Test all 64 checkbox combinations
      */
     async testCheckboxCombinations() {
-        console.log('🔄 Testing Checkbox Combinations (64 scenarios)...');
+        config.log('🔄 Testing Checkbox Combinations (64 scenarios)...');
         
         const checkboxes = [
             'includeOriginals', 'includeRaw',
@@ -475,39 +504,39 @@ export class ComprehensiveUITester {
      * Generate comprehensive final report
      */
     generateFinalReport() {
-        console.log('\n🏁 COMPREHENSIVE UI TEST RESULTS');
-        console.log('='.repeat(50));
-        console.log(`✅ Passed: ${this.testResults.passed.length}`);
-        console.log(`❌ Failed: ${this.testResults.failed.length}`);
-        console.log(`⚠️ Warnings: ${this.testResults.warnings.length}`);
+        config.log('\n🏁 COMPREHENSIVE UI TEST RESULTS');
+        config.log('='.repeat(50));
+        config.log(`✅ Passed: ${this.testResults.passed.length}`);
+        config.log(`❌ Failed: ${this.testResults.failed.length}`);
+        config.log(`⚠️ Warnings: ${this.testResults.warnings.length}`);
         
         const total = this.testResults.passed.length + this.testResults.failed.length + this.testResults.warnings.length;
         const passRate = ((this.testResults.passed.length) / total) * 100;
         
-        console.log(`📊 Pass Rate: ${passRate.toFixed(1)}%`);
-        console.log(`🎯 Target: 100% (Zero failures allowed)`);
+        config.log(`📊 Pass Rate: ${passRate.toFixed(1)}%`);
+        config.log(`🎯 Target: 100% (Zero failures allowed)`);
         
         if (this.testResults.failed.length > 0) {
-            console.log('\n❌ CRITICAL FAILURES:');
-            this.testResults.failed.forEach(failure => console.log(failure));
+            config.log('\n❌ CRITICAL FAILURES:');
+            this.testResults.failed.forEach(failure => config.log(failure));
         }
         
         if (this.testResults.warnings.length > 0) {
-            console.log('\n⚠️ WARNINGS:');
-            this.testResults.warnings.slice(0, 10).forEach(warning => console.log(warning));
+            config.log('\n⚠️ WARNINGS:');
+            this.testResults.warnings.slice(0, 10).forEach(warning => config.log(warning));
             if (this.testResults.warnings.length > 10) {
-                console.log(`... and ${this.testResults.warnings.length - 10} more warnings`);
+                config.log(`... and ${this.testResults.warnings.length - 10} more warnings`);
             }
         }
         
-        console.log('\n🎯 VERDICT:');
+        config.log('\n🎯 VERDICT:');
         if (this.testResults.failed.length === 0) {
-            console.log('✅ ALL TESTS PASSED - READY FOR PRODUCTION');
+            config.log('✅ ALL TESTS PASSED - READY FOR PRODUCTION');
         } else {
-            console.log('❌ FAILURES DETECTED - FIX BEFORE DEPLOYMENT');
+            config.log('❌ FAILURES DETECTED - FIX BEFORE DEPLOYMENT');
         }
         
-        console.log('='.repeat(50));
+        config.log('='.repeat(50));
     }
 
     // Additional test methods would continue here...
@@ -526,7 +555,7 @@ window.ComprehensiveUITester = ComprehensiveUITester;
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     document.addEventListener('DOMContentLoaded', () => {
         setTimeout(async () => {
-            console.log('🧪 Auto-running comprehensive UI tests...');
+            config.log('🧪 Auto-running comprehensive UI tests...');
             const tester = new ComprehensiveUITester();
             await tester.runAllTests();
         }, 2000); // Wait for app to fully initialize

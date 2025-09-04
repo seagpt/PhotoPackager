@@ -1,0 +1,205 @@
+{
+    "env": {
+        "browser": true,
+        "es2021": true,
+        "node": false
+    },
+    "extends": [
+        "eslint:recommended"
+    ],
+    "parserOptions": {
+        "ecmaVersion": 2021,
+        "sourceType": "module"
+    },
+    "globals": {
+        "JSZip": "readonly",
+        "piexifjs": "readonly",
+        "PHOTOPACKAGER_ENV": "readonly"
+    },
+    "rules": {
+        // Error Prevention
+        "no-unused-vars": ["error", { 
+            "args": "after-used", 
+            "varsIgnorePattern": "^_",
+            "argsIgnorePattern": "^_"
+        }],
+        "no-undef": "error",
+        "no-redeclare": "error",
+        "no-unreachable": "error",
+        "no-duplicate-keys": "error",
+        "no-dupe-args": "error",
+        "no-console": "warn",
+        
+        // Best Practices
+        "eqeqeq": ["error", "always"],
+        "curly": ["error", "all"],
+        "no-eval": "error",
+        "no-implied-eval": "error",
+        "no-new-func": "error",
+        "no-global-assign": "error",
+        "no-implicit-globals": "error",
+        "no-return-await": "error",
+        "prefer-promise-reject-errors": "error",
+        "no-throw-literal": "error",
+        
+        // ES6+ Features
+        "prefer-const": "error",
+        "no-var": "error",
+        "prefer-arrow-callback": "warn",
+        "arrow-spacing": "error",
+        "template-curly-spacing": "error",
+        "object-shorthand": "warn",
+        "prefer-destructuring": ["warn", {
+            "array": false,
+            "object": true
+        }],
+        
+        // Code Style
+        "indent": ["error", 4, { 
+            "SwitchCase": 1,
+            "MemberExpression": 1
+        }],
+        "quotes": ["error", "single", { 
+            "avoidEscape": true,
+            "allowTemplateLiterals": true 
+        }],
+        "semi": ["error", "always"],
+        "comma-dangle": ["error", "never"],
+        "comma-spacing": ["error", { 
+            "before": false, 
+            "after": true 
+        }],
+        "key-spacing": ["error", { 
+            "beforeColon": false, 
+            "afterColon": true 
+        }],
+        "space-before-function-paren": ["error", {
+            "anonymous": "never",
+            "named": "never",
+            "asyncArrow": "always"
+        }],
+        "space-in-parens": ["error", "never"],
+        "space-before-blocks": "error",
+        "keyword-spacing": "error",
+        "brace-style": ["error", "1tbs", { 
+            "allowSingleLine": true 
+        }],
+        
+        // Naming Conventions
+        "camelcase": ["error", { 
+            "properties": "always",
+            "ignoreDestructuring": true,
+            "allow": ["^[A-Z_]+$"] // Allow constants
+        }],
+        
+        // Function Rules
+        "max-params": ["warn", 5],
+        "max-lines-per-function": ["warn", {
+            "max": 100,
+            "skipComments": true,
+            "skipBlankLines": true
+        }],
+        "complexity": ["warn", 15],
+        "max-depth": ["warn", 4],
+        "max-nested-callbacks": ["warn", 4],
+        
+        // Performance & Memory
+        "no-loop-func": "error",
+        "no-new-object": "error",
+        "no-new-wrappers": "error",
+        "no-array-constructor": "error",
+        
+        // Security
+        "no-script-url": "error",
+        "no-new": "error",
+        
+        // Async/Await
+        "require-await": "warn",
+        "no-async-promise-executor": "error",
+        "no-await-in-loop": "warn",
+        
+        // Error Handling
+        "no-empty": ["error", { 
+            "allowEmptyCatch": true 
+        }],
+        "no-ex-assign": "error",
+        "handle-callback-err": "warn",
+        
+        // Class Rules
+        "no-useless-constructor": "warn",
+        "no-dupe-class-members": "error",
+        "class-methods-use-this": "off",
+        
+        // Import/Export (basic rules for ES modules)
+        "no-duplicate-imports": "error",
+        
+        // Memory Leak Prevention
+        "no-implicit-coercion": "warn",
+        "prefer-rest-params": "warn",
+        "prefer-spread": "warn",
+        
+        // Documentation
+        "valid-jsdoc": ["warn", {
+            "requireReturn": false,
+            "requireReturnType": false,
+            "requireParamType": false,
+            "preferType": {
+                "Boolean": "boolean",
+                "Number": "number",
+                "String": "string",
+                "Object": "object"
+            }
+        }]
+    },
+    "overrides": [
+        {
+            "files": ["src/js/Config.js"],
+            "rules": {
+                "no-console": "off" // Allow console in config file
+            }
+        },
+        {
+            "files": ["src/js/ErrorHandler.js"],
+            "rules": {
+                "no-console": "off", // Allow console in error handler
+                "max-lines-per-function": "off" // Error handler can have long functions
+            }
+        },
+        {
+            "files": ["src/js/AnalyticsManager.js"],
+            "rules": {
+                "no-console": "off" // Allow console in analytics
+            }
+        },
+        {
+            "files": ["src/main.js"],
+            "rules": {
+                "max-lines-per-function": ["warn", {
+                    "max": 150,
+                    "skipComments": true,
+                    "skipBlankLines": true
+                }]
+            }
+        },
+        {
+            "files": ["src/js/ImageProcessor.js", "src/js/PerformanceOptimizer.js"],
+            "rules": {
+                "max-lines-per-function": ["warn", {
+                    "max": 120,
+                    "skipComments": true,
+                    "skipBlankLines": true
+                }],
+                "complexity": ["warn", 20] // Image processing can be complex
+            }
+        }
+    ],
+    "ignorePatterns": [
+        "node_modules/",
+        "dist/",
+        "build/",
+        "*.min.js",
+        "vendor/",
+        "lib/piexifjs.js",
+        "lib/jszip.min.js"
+    ]
+}

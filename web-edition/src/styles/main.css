@@ -1,7 +1,10 @@
 /**
- * PhotoPackager Web Edition - Patch Design Theme
- * Inspired by the official PhotoPackager patch design
- * Dark theme with electric blue accents and layered photo metaphors
+ * PhotoPackager Web Edition - Main Styles (Patch Design Theme)
+ * 
+ * Copyright (c) 2025 DropShock Digital LLC
+ * Created by Steven Seagondollar
+ * 
+ * This file is part of PhotoPackager Web Edition, an open-source photo processing tool.
  */
 
 /* Reset and base styles - Dark theme */
@@ -80,6 +83,53 @@ body {
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
+/* Warning Banner - Critical for legal protection */
+.warning-banner {
+    background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+    border: 2px solid #ff6b7a;
+    color: #ffffff;
+    padding: 1rem 2rem;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    position: relative;
+    z-index: 1000;
+}
+
+.warning-banner::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #ff6b7a, #ffffff, #ff6b7a);
+    animation: warningPulse 2s ease-in-out infinite alternate;
+}
+
+.warning-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.warning-content strong {
+    font-size: 1.2rem;
+    display: block;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+}
+
+.warning-content p {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    opacity: 0.95;
+}
+
+@keyframes warningPulse {
+    0% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
 /* Main content */
 .main-content {
     flex: 1;
@@ -89,7 +139,7 @@ body {
     width: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start; /* Start from top instead of center */
     min-height: calc(100vh - 200px); /* Account for header height */
 }
 
@@ -242,6 +292,1120 @@ body {
     font-size: 1.2rem;
 }
 
+/* Loading States for All Async Operations */
+.btn-loading {
+    pointer-events: none;
+    position: relative;
+    color: transparent !important;
+    cursor: not-allowed;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: btnSpinner 1s linear infinite;
+    color: inherit;
+}
+
+.btn-loading.btn-primary::after {
+    border-top-color: #ffffff;
+}
+
+.btn-loading.btn-success::after {
+    border-top-color: #1a1a1a;
+}
+
+.btn-loading.btn-secondary::after {
+    border-top-color: #ffffff;
+}
+
+@keyframes btnSpinner {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Drop Zone Loading State */
+.drop-zone-loading {
+    pointer-events: none;
+    opacity: 0.7;
+    position: relative;
+}
+
+.drop-zone-loading::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 10;
+    border-radius: inherit;
+}
+
+.drop-zone-loading::after {
+    content: 'Processing files...';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 11;
+    color: #00aeff;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Input Loading States */
+.form-group-loading input,
+.form-group-loading select {
+    background-image: linear-gradient(90deg, 
+        rgba(0, 174, 255, 0.1) 0%, 
+        rgba(0, 174, 255, 0.3) 50%, 
+        rgba(0, 174, 255, 0.1) 100%);
+    background-size: 200% 100%;
+    animation: inputShimmer 1.5s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes inputShimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* Dialog Loading States */
+.dialog-loading {
+    position: relative;
+}
+
+.dialog-loading::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    border-radius: inherit;
+}
+
+.dialog-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 40px;
+    margin: -20px 0 0 -20px;
+    border: 3px solid rgba(0, 174, 255, 0.3);
+    border-top: 3px solid #00aeff;
+    border-radius: 50%;
+    animation: dialogSpinner 1s linear infinite;
+    z-index: 101;
+}
+
+@keyframes dialogSpinner {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Global Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.loading-overlay .spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(0, 174, 255, 0.3);
+    border-top: 4px solid #00aeff;
+    border-radius: 50%;
+    animation: overlaySpinner 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+.loading-overlay .loading-text {
+    color: #ffffff;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-align: center;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+@keyframes overlaySpinner {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Resume Dialog Loading */
+.resume-dialog-loading .resume-options {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Tooltip System */
+.tooltip {
+    position: fixed;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+    color: #ffffff;
+    border: 2px solid #00aeff;
+    border-radius: 12px;
+    padding: 0;
+    max-width: 300px;
+    min-width: 200px;
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 0 20px rgba(0, 174, 255, 0.3);
+    z-index: 10000;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.tooltip[style*="display: block"] {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.tooltip-title {
+    background: linear-gradient(45deg, #00aeff, #0088cc);
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 10px 10px 0 0;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tooltip-content {
+    padding: 12px;
+    color: #e0e0e0;
+    line-height: 1.5;
+}
+
+/* Tooltip Arrow */
+.tooltip-arrow {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+}
+
+/* Arrow positioning for different tooltip positions */
+.tooltip-top .tooltip-arrow {
+    bottom: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-top-color: #00aeff;
+}
+
+.tooltip-bottom .tooltip-arrow {
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-bottom-color: #00aeff;
+}
+
+.tooltip-left .tooltip-arrow {
+    right: -16px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-left-color: #00aeff;
+}
+
+.tooltip-right .tooltip-arrow {
+    left: -16px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-right-color: #00aeff;
+}
+
+/* Tooltip active state for elements */
+.tooltip-active {
+    position: relative;
+    z-index: 1;
+}
+
+/* Subtle highlight for elements with tooltips on hover */
+input[data-tooltip]:hover,
+select[data-tooltip]:hover,
+button[data-tooltip]:hover {
+    box-shadow: 0 0 0 2px rgba(0, 174, 255, 0.2);
+    transition: box-shadow 0.2s ease;
+}
+
+/* Special styling for range inputs with tooltips */
+input[type="range"][data-tooltip]:hover {
+    background: linear-gradient(135deg, #333333, #444444);
+}
+
+/* Tooltip responsive behavior */
+@media (max-width: 768px) {
+    .tooltip {
+        max-width: 280px;
+        min-width: 200px;
+        font-size: 0.85rem;
+        box-shadow: 
+            0 4px 20px rgba(0, 0, 0, 0.5),
+            0 0 15px rgba(0, 174, 255, 0.4);
+    }
+    
+    .tooltip-title {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .tooltip-content {
+        padding: 10px;
+    }
+    
+    /* Smaller arrow for mobile */
+    .tooltip-arrow {
+        border-width: 6px;
+    }
+    
+    .tooltip-top .tooltip-arrow {
+        bottom: -12px;
+    }
+    
+    .tooltip-bottom .tooltip-arrow {
+        top: -12px;
+    }
+    
+    .tooltip-left .tooltip-arrow {
+        right: -12px;
+    }
+    
+    .tooltip-right .tooltip-arrow {
+        left: -12px;
+    }
+}
+
+/* Accessibility: High contrast mode */
+@media (prefers-contrast: high) {
+    .tooltip {
+        background: #000000;
+        border-color: #ffffff;
+        color: #ffffff;
+    }
+    
+    .tooltip-title {
+        background: #ffffff;
+        color: #000000;
+    }
+    
+    .tooltip-arrow {
+        border-top-color: #ffffff !important;
+        border-bottom-color: #ffffff !important;
+        border-left-color: #ffffff !important;
+        border-right-color: #ffffff !important;
+    }
+}
+
+/* Accessibility: Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+    .tooltip {
+        transition: opacity 0.1s ease;
+        transform: none;
+    }
+    
+    .tooltip[style*="display: block"] {
+        transform: none;
+    }
+}
+
+/* Keyboard Shortcuts */
+.keyboard-shortcut-highlight {
+    box-shadow: 0 0 0 3px rgba(0, 174, 255, 0.6) !important;
+    transition: box-shadow 0.3s ease;
+}
+
+/* Keyboard shortcut indicators on buttons */
+button[data-shortcut]::after {
+    content: attr(data-shortcut);
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(0, 0, 0, 0.8);
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+button[data-shortcut]:hover::after {
+    opacity: 1;
+}
+
+/* Keyboard Help Dialog */
+.keyboard-help-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.help-dialog-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+}
+
+.help-dialog-content {
+    position: relative;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+    border: 2px solid #00aeff;
+    border-radius: 20px;
+    padding: 2rem;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        0 0 30px rgba(0, 174, 255, 0.3);
+    color: #ffffff;
+}
+
+.keyboard-shortcuts-help h3 {
+    color: #00aeff;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.shortcut-category {
+    margin-bottom: 1.5rem;
+}
+
+.shortcut-category h4 {
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+    border-bottom: 1px solid rgba(0, 174, 255, 0.3);
+    padding-bottom: 0.25rem;
+}
+
+.shortcut-category ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.shortcut-category li {
+    display: flex;
+    align-items: center;
+    padding: 0.25rem 0;
+    color: #e0e0e0;
+}
+
+.shortcut-category kbd {
+    background: linear-gradient(135deg, #444444, #333333);
+    color: #ffffff;
+    border: 1px solid #666666;
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    min-width: 80px;
+    text-align: center;
+    margin-right: 1rem;
+    box-shadow: 
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.help-dialog-close {
+    display: block;
+    margin: 2rem auto 0;
+    min-width: 100px;
+}
+
+/* Keyboard shortcuts help responsive */
+@media (max-width: 768px) {
+    .help-dialog-content {
+        margin: 1rem;
+        padding: 1.5rem;
+        max-height: 90vh;
+    }
+    
+    .shortcut-category li {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0.5rem 0;
+    }
+    
+    .shortcut-category kbd {
+        margin-right: 0;
+        margin-bottom: 0.25rem;
+    }
+    
+    button[data-shortcut]::after {
+        display: none; /* Hide shortcut indicators on mobile */
+    }
+}
+
+/* Enhanced Focus Management System */
+
+/* Screen reader only content */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Focus visibility - only show focus outlines when using keyboard */
+body:not(.focus-visible) *:focus {
+    outline: none;
+}
+
+body.focus-visible *:focus,
+.keyboard-focused {
+    outline: 3px solid #00aeff;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 1px rgba(0, 174, 255, 0.3);
+}
+
+/* Enhanced focus indicators for different element types */
+body.focus-visible button:focus,
+button.keyboard-focused {
+    outline: 3px solid #00aeff;
+    outline-offset: 3px;
+    box-shadow: 
+        0 0 0 1px rgba(0, 174, 255, 0.3),
+        0 0 15px rgba(0, 174, 255, 0.2);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+body.focus-visible input:focus,
+input.keyboard-focused,
+body.focus-visible select:focus,
+select.keyboard-focused {
+    outline: 3px solid #00aeff;
+    outline-offset: 2px;
+    border-color: #00aeff;
+    box-shadow: 
+        0 0 0 1px rgba(0, 174, 255, 0.3),
+        inset 0 1px 3px rgba(0, 174, 255, 0.1);
+}
+
+/* Special focus for range inputs */
+body.focus-visible input[type="range"]:focus,
+input[type="range"].keyboard-focused {
+    outline: 3px solid #00aeff;
+    outline-offset: 4px;
+    box-shadow: 0 0 0 6px rgba(0, 174, 255, 0.2);
+}
+
+/* Focus for checkboxes and radios */
+body.focus-visible input[type="checkbox"]:focus,
+input[type="checkbox"].keyboard-focused,
+body.focus-visible input[type="radio"]:focus,
+input[type="radio"].keyboard-focused {
+    outline: 3px solid #00aeff;
+    outline-offset: 3px;
+    box-shadow: 0 0 10px rgba(0, 174, 255, 0.4);
+}
+
+/* Skip link enhancement */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: #00aeff;
+    color: white;
+    padding: 8px 12px;
+    text-decoration: none;
+    border-radius: 4px;
+    z-index: 10002;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.skip-link:focus {
+    top: 6px;
+    border-color: #ffffff;
+    box-shadow: 0 4px 15px rgba(0, 174, 255, 0.4);
+    outline: none;
+}
+
+/* Focus trap styling */
+.focus-trap {
+    position: relative;
+}
+
+.focus-trap::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border: 2px solid rgba(0, 174, 255, 0.5);
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: -1;
+    animation: focusTrapPulse 2s ease-in-out infinite;
+}
+
+@keyframes focusTrapPulse {
+    0%, 100% { 
+        border-color: rgba(0, 174, 255, 0.3);
+        box-shadow: 0 0 10px rgba(0, 174, 255, 0.2);
+    }
+    50% { 
+        border-color: rgba(0, 174, 255, 0.6);
+        box-shadow: 0 0 20px rgba(0, 174, 255, 0.4);
+    }
+}
+
+/* Focus group indicators for related controls */
+[data-group] {
+    position: relative;
+}
+
+body.focus-visible [data-group]:focus::after,
+[data-group].keyboard-focused::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    border: 1px dashed rgba(0, 174, 255, 0.5);
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Tab navigation indicators */
+body.focus-visible .config-section:has(*:focus) {
+    background: linear-gradient(135deg, rgba(0, 174, 255, 0.05) 0%, rgba(0, 174, 255, 0.02) 100%);
+    border-radius: 12px;
+    transition: background 0.2s ease;
+}
+
+/* Focus within drop zone */
+body.focus-visible .drop-zone:focus-within {
+    border-color: #00aeff;
+    box-shadow: 
+        0 0 0 3px rgba(0, 174, 255, 0.2),
+        0 10px 30px rgba(0, 174, 255, 0.15);
+}
+
+/* Focus state for custom clickable elements */
+body.focus-visible [data-clickable]:focus,
+[data-clickable].keyboard-focused,
+body.focus-visible [role="button"]:focus,
+[role="button"].keyboard-focused {
+    outline: 3px solid #00aeff;
+    outline-offset: 2px;
+    background: rgba(0, 174, 255, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 174, 255, 0.3);
+}
+
+/* High contrast focus indicators */
+@media (prefers-contrast: high) {
+    body.focus-visible *:focus,
+    .keyboard-focused {
+        outline: 3px solid #ffffff;
+        box-shadow: 0 0 0 1px #000000, 0 0 0 4px #ffffff;
+    }
+    
+    .skip-link {
+        background: #ffffff;
+        color: #000000;
+        border-color: #000000;
+    }
+    
+    .skip-link:focus {
+        background: #000000;
+        color: #ffffff;
+        border-color: #ffffff;
+    }
+    
+    .focus-trap::before {
+        border-color: #ffffff;
+    }
+}
+
+/* Reduced motion for focus animations */
+@media (prefers-reduced-motion: reduce) {
+    body.focus-visible button:focus,
+    button.keyboard-focused,
+    body.focus-visible [data-clickable]:focus,
+    [data-clickable].keyboard-focused {
+        transform: none;
+        transition: none;
+    }
+    
+    .focus-trap::before {
+        animation: none;
+    }
+    
+    .skip-link {
+        transition: none;
+    }
+}
+
+/* Focus management for panels */
+.panel-focus-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #00aeff, #00ff88);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1;
+}
+
+.panel:focus-within .panel-focus-indicator {
+    opacity: 1;
+}
+
+/* Live region for screen reader announcements */
+#screen-reader-announcements {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+/* Focus order visual debugging (only in debug mode) */
+body.debug-mode .focus-visible *:focus::after {
+    content: attr(tabindex);
+    position: absolute;
+    top: -20px;
+    right: -10px;
+    background: #ff4757;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+/* Mobile focus adjustments */
+@media (max-width: 768px) {
+    .skip-link {
+        padding: 12px 16px;
+        font-size: 1rem;
+    }
+    
+    body.focus-visible *:focus,
+    .keyboard-focused {
+        outline-width: 2px;
+        outline-offset: 1px;
+    }
+    
+    /* Larger touch targets for mobile focus */
+    body.focus-visible button:focus,
+    button.keyboard-focused {
+        outline-offset: 4px;
+    }
+}
+
+/* Accessibility: High contrast keyboard shortcuts */
+@media (prefers-contrast: high) {
+    .keyboard-shortcut-highlight {
+        box-shadow: 0 0 0 3px #ffffff !important;
+    }
+    
+    button[data-shortcut]::after {
+        background: #ffffff;
+        color: #000000;
+        border: 1px solid #000000;
+    }
+    
+    .help-dialog-content {
+        background: #000000;
+        border-color: #ffffff;
+        color: #ffffff;
+    }
+    
+    .shortcut-category kbd {
+        background: #ffffff;
+        color: #000000;
+        border-color: #000000;
+    }
+}
+
+/* Enhanced Drag and Drop Visual Feedback */
+
+/* Global drag state - subtle page indication */
+body.drag-active {
+    background-image: 
+        radial-gradient(circle at 20% 80%, rgba(0, 174, 255, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(0, 174, 255, 0.15) 0%, transparent 50%);
+    transition: background-image 0.3s ease;
+}
+
+/* Drop zone target highlighting */
+.drop-zone.drag-target {
+    animation: pulseDropZone 2s ease-in-out infinite;
+}
+
+@keyframes pulseDropZone {
+    0%, 100% { 
+        box-shadow: 0 0 20px rgba(0, 174, 255, 0.3);
+    }
+    50% { 
+        box-shadow: 0 0 40px rgba(0, 174, 255, 0.6);
+    }
+}
+
+/* Enhanced drag-over states */
+.drop-zone.drag-valid {
+    border-color: #00ff88 !important;
+    background: linear-gradient(135deg, #1e3b2e 0%, #2d4a3d 100%) !important;
+    box-shadow: 
+        0 15px 40px rgba(0, 255, 136, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.drop-zone.drag-invalid {
+    border-color: #ff4757 !important;
+    background: linear-gradient(135deg, #3d1e1e 0%, #4a2d2d 100%) !important;
+    box-shadow: 
+        0 15px 40px rgba(255, 71, 87, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.drop-zone.drag-mixed {
+    border-color: #ffa502 !important;
+    background: linear-gradient(135deg, #3d2e1e 0%, #4a3d2d 100%) !important;
+    box-shadow: 
+        0 15px 40px rgba(255, 165, 2, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Drag feedback elements */
+.drag-file-count {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+}
+
+.drag-file-count.valid {
+    border-color: #00ff88;
+    color: #00ff88;
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+}
+
+.drag-file-count.invalid {
+    border-color: #ff4757;
+    color: #ff4757;
+    box-shadow: 0 0 15px rgba(255, 71, 87, 0.4);
+}
+
+.drag-file-types {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: rgba(0, 0, 0, 0.9);
+    color: #ffffff;
+    padding: 12px 20px;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    white-space: nowrap;
+}
+
+.drag-file-types.valid {
+    border-color: #00ff88;
+    color: #00ff88;
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+}
+
+.drag-file-types.invalid {
+    border-color: #ff4757;
+    color: #ff4757;
+    box-shadow: 0 0 20px rgba(255, 71, 87, 0.4);
+}
+
+.drag-file-types.mixed {
+    border-color: #ffa502;
+    color: #ffa502;
+    box-shadow: 0 0 20px rgba(255, 165, 2, 0.4);
+}
+
+/* Show feedback elements with animation */
+.drop-zone.drag-over .drag-file-count[style*="opacity: 1"],
+.drop-zone.drag-over .drag-file-types[style*="opacity: 1"] {
+    transform: translateY(0) !important;
+    opacity: 1 !important;
+}
+
+/* Drag progress indicator */
+.drag-progress {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid #00aeff;
+    border-radius: 15px;
+    padding: 20px;
+    min-width: 300px;
+    text-align: center;
+    z-index: 101;
+    backdrop-filter: blur(10px);
+}
+
+.drag-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.drag-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00aeff, #00ff88);
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.3s ease;
+    animation: progressShimmer 2s ease-in-out infinite;
+}
+
+.drag-progress-text {
+    color: #00aeff;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* Enhanced drop zone animations */
+.drop-zone.drag-over {
+    animation: dragOverPulse 2s ease-in-out infinite;
+}
+
+@keyframes dragOverPulse {
+    0%, 100% { 
+        transform: translateY(-5px) scale(1.02);
+    }
+    50% { 
+        transform: translateY(-8px) scale(1.025);
+    }
+}
+
+/* File type specific visual cues */
+.drop-zone.drag-over::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        repeating-linear-gradient(
+            45deg,
+            rgba(0, 174, 255, 0.05) 0px,
+            rgba(0, 174, 255, 0.05) 10px,
+            transparent 10px,
+            transparent 20px
+        );
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    animation: stripesMove 2s linear infinite;
+}
+
+.drop-zone.drag-valid::after {
+    background: 
+        repeating-linear-gradient(
+            45deg,
+            rgba(0, 255, 136, 0.1) 0px,
+            rgba(0, 255, 136, 0.1) 10px,
+            transparent 10px,
+            transparent 20px
+        );
+    opacity: 1;
+}
+
+.drop-zone.drag-invalid::after {
+    background: 
+        repeating-linear-gradient(
+            45deg,
+            rgba(255, 71, 87, 0.1) 0px,
+            rgba(255, 71, 87, 0.1) 10px,
+            transparent 10px,
+            transparent 20px
+        );
+    opacity: 1;
+}
+
+.drop-zone.drag-mixed::after {
+    background: 
+        repeating-linear-gradient(
+            45deg,
+            rgba(255, 165, 2, 0.1) 0px,
+            rgba(255, 165, 2, 0.1) 10px,
+            transparent 10px,
+            transparent 20px
+        );
+    opacity: 1;
+}
+
+@keyframes stripesMove {
+    0% { background-position: 0 0; }
+    100% { background-position: 40px 0; }
+}
+
+/* Responsive drag feedback */
+@media (max-width: 768px) {
+    .drag-file-count {
+        top: 10px;
+        right: 10px;
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .drag-file-types {
+        bottom: 20px;
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+    
+    .drag-progress {
+        min-width: 280px;
+        padding: 15px;
+    }
+    
+    /* Reduce animation intensity on mobile */
+    .drop-zone.drag-target {
+        animation: none;
+    }
+    
+    @keyframes dragOverPulse {
+        0%, 100% { 
+            transform: scale(1.01);
+        }
+        50% { 
+            transform: scale(1.02);
+        }
+    }
+}
+
+/* Accessibility: High contrast drag states */
+@media (prefers-contrast: high) {
+    .drop-zone.drag-valid {
+        border-color: #ffffff !important;
+        background: #000000 !important;
+    }
+    
+    .drop-zone.drag-invalid {
+        border-color: #ffffff !important;
+        background: #000000 !important;
+    }
+    
+    .drop-zone.drag-mixed {
+        border-color: #ffffff !important;
+        background: #000000 !important;
+    }
+    
+    .drag-file-count,
+    .drag-file-types {
+        background: #ffffff;
+        color: #000000;
+        border-color: #000000;
+    }
+}
+
+/* Accessibility: Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .drop-zone.drag-target {
+        animation: none;
+    }
+    
+    .drop-zone.drag-over {
+        animation: none;
+    }
+    
+    .drag-progress-fill {
+        animation: none;
+    }
+    
+    .drop-zone::after {
+        animation: none;
+    }
+    
+    body.drag-active {
+        transition: none;
+    }
+}
+
 /* Config Panel - Dark card design */
 .config-panel {
     background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
@@ -382,7 +1546,7 @@ body {
     border: 2px solid #00aeff;
     border-radius: 20px;
     padding: 2.5rem;
-    margin: 2rem auto;
+    margin: 0 auto;
     max-width: 800px;
     box-shadow: 
         0 15px 40px rgba(0, 0, 0, 0.4),
@@ -691,4 +1855,386 @@ body {
 .processing .btn:hover {
     transform: none !important;
     box-shadow: none !important;
+}
+
+/* App Footer Styling */
+.app-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(26, 26, 26, 0.95);
+    border-top: 1px solid rgba(0, 174, 255, 0.3);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    padding: 8px 20px;
+    font-size: 0.85rem;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.version-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: #cccccc;
+}
+
+.app-name {
+    font-weight: 600;
+    color: #00aeff;
+}
+
+.app-version {
+    background: linear-gradient(135deg, #00aeff, #0088cc);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.build-info {
+    color: #888888;
+    font-size: 0.75rem;
+}
+
+.footer-links {
+    display: flex;
+    gap: 15px;
+}
+
+.footer-links a {
+    color: #cccccc;
+    text-decoration: none;
+    transition: color 0.3s ease;
+    font-size: 0.8rem;
+}
+
+.footer-links a:hover {
+    color: #00aeff;
+    text-decoration: underline;
+}
+
+/* Adjust main content to account for footer */
+.app-container {
+    padding-bottom: 50px; /* Space for footer */
+}
+
+/* Mobile responsive footer */
+@media (max-width: 768px) {
+    .app-footer {
+        padding: 6px 15px;
+        font-size: 0.8rem;
+    }
+    
+    .footer-content {
+        flex-direction: column;
+        gap: 8px;
+        text-align: center;
+    }
+    
+    .version-info {
+        gap: 10px;
+        font-size: 0.75rem;
+    }
+    
+    .footer-links {
+        gap: 10px;
+    }
+    
+    .footer-links a {
+        font-size: 0.75rem;
+    }
+    
+    .app-container {
+        padding-bottom: 70px; /* More space for stacked footer */
+    }
+}
+
+/* Progress Actions (Cancel Button) */
+.progress-actions {
+    margin-top: 20px;
+    text-align: center;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-cancel {
+    background: linear-gradient(135deg, #ff4444, #cc2222) !important;
+    color: white !important;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 140px;
+}
+
+.btn-cancel:hover {
+    background: linear-gradient(135deg, #ff6666, #dd3333) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 68, 68, 0.4);
+}
+
+.btn-cancel:active {
+    transform: translateY(0);
+}
+
+.btn-cancel:disabled {
+    background: #666666 !important;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Hide cancel button when processing is complete */
+.processing-complete .progress-actions {
+    display: none;
+}
+
+/* Debug mode styles */
+.debug-mode {
+    border: 2px solid #ff6600;
+}
+
+.debug-mode::before {
+    content: "DEBUG MODE";
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: #ff6600;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+.debug-mode .container {
+    border-left: 4px solid #ff6600;
+}
+
+/* Mobile device styles */
+.mobile-device .drop-zone {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-device .drop-zone:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 174, 255, 0.2);
+}
+
+.mobile-device .drop-zone:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 15px rgba(0, 174, 255, 0.3);
+}
+
+.mobile-device .mobile-note {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 10px;
+    font-style: italic;
+}
+
+.mobile-device .drop-text h2 {
+    color: #00aeff;
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+}
+
+.mobile-device .drop-text p {
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+}
+
+/* Hide desktop drag & drop hints on mobile */
+.mobile-device .drag-hint {
+    display: none;
+}
+
+/* Enhance touch targets on mobile */
+.mobile-device .btn {
+    min-height: 44px;
+    padding: 12px 24px;
+    font-size: 1rem;
+    touch-action: manipulation;
+}
+
+.mobile-device #selectFolderBtn {
+    background: linear-gradient(135deg, #00aeff, #0088cc);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 174, 255, 0.3);
+    transition: all 0.2s ease;
+    margin-top: 20px;
+}
+
+.mobile-device #selectFolderBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 174, 255, 0.4);
+}
+
+.mobile-device #selectFolderBtn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(0, 174, 255, 0.3);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+        margin: 10px;
+    }
+    
+    .panel {
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+    
+    .drop-zone {
+        padding: 30px 20px;
+        min-height: 200px;
+    }
+    
+    .form-group label {
+        font-size: 1rem;
+        margin-bottom: 8px;
+    }
+    
+    .form-group input,
+    .form-group select {
+        font-size: 1rem;
+        padding: 12px;
+    }
+    
+    .checkbox-group {
+        margin-bottom: 20px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .progress-bar {
+        height: 8px;
+    }
+    
+    /* Stack buttons vertically on very small screens */
+    @media (max-width: 480px) {
+        .mobile-device .btn {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .mobile-device .drop-text h2 {
+            font-size: 1.3rem;
+        }
+        
+        .mobile-device .drop-text p {
+            font-size: 1rem;
+        }
+    }
+}
+
+/* Processing Session UI Lock Styles (ASAP-025) */
+.processing-disabled {
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+}
+
+.processing-locked {
+    position: relative;
+}
+
+.processing-locked::before {
+    content: "🔒 Settings locked during processing...";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.8);
+    color: #ffd700;
+    padding: 8px;
+    text-align: center;
+    font-size: 0.9em;
+    z-index: 10;
+    border-radius: 4px 4px 0 0;
+}
+
+.drop-zone.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #333 !important;
+}
+
+.drop-zone.disabled::after {
+    content: "⏳ Processing in progress...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ffd700;
+    font-size: 1.1em;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+}
+
+/* Real-time Input Validation Styles (ASAP-036) */
+.input-error {
+    border-color: #e74c3c !important;
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2) !important;
+    background-color: rgba(231, 76, 60, 0.05) !important;
+}
+
+.input-valid {
+    border-color: #27ae60 !important;
+    box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.2) !important;
+    background-color: rgba(39, 174, 96, 0.05) !important;
+}
+
+.field-error {
+    color: #e74c3c;
+    font-size: 12px;
+    margin-top: 4px;
+    display: none;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.field-error.visible {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Input focus states with validation */
+input.input-error:focus,
+select.input-error:focus,
+textarea.input-error:focus {
+    border-color: #e74c3c !important;
+    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.3) !important;
+}
+
+input.input-valid:focus,
+select.input-valid:focus,
+textarea.input-valid:focus {
+    border-color: #27ae60 !important;
+    box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.3) !important;
 }

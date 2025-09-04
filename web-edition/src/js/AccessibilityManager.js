@@ -1,8 +1,37 @@
 /**
+ * PhotoPackager Web Edition - Accessibility Support Manager
+ * 
+ * Copyright (c) 2025 DropShock Digital LLC
+ * Created by Steven Seagondollar
+ * 
+ * Licensed under the MIT License:
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * 
+ * This file is part of PhotoPackager Web Edition, an open-source photo processing tool.
+ * 
  * AccessibilityManager.js
  * Comprehensive accessibility support for PhotoPackager
  * Handles keyboard navigation, ARIA updates, and screen reader support
  */
+
+import { logger } from './Logger.js';
 
 export class AccessibilityManager {
     constructor() {
@@ -10,6 +39,8 @@ export class AccessibilityManager {
         this.focusableElements = [];
         this.keyboardNavigationEnabled = false;
         this.liveRegion = null;
+        // HIGH-003: Track event listeners for cleanup
+        this.eventListeners = [];
         this.setupAccessibility();
     }
 
@@ -28,12 +59,21 @@ export class AccessibilityManager {
             this.updateFocusableElements();
         });
         
+        this.mutationObserver = observer;
         observer.observe(document.body, {
             childList: true,
             subtree: true,
             attributes: true,
             attributeFilter: ['style', 'hidden', 'disabled']
         });
+    }
+
+    /**
+     * HIGH-003: Helper method to add tracked event listeners
+     */
+    addTrackedEventListener(target, event, handler, options) {
+        target.addEventListener(event, handler, options);
+        this.eventListeners.push({ target, event, handler, options });
     }
 
     /**
@@ -73,7 +113,8 @@ export class AccessibilityManager {
      * Setup keyboard navigation
      */
     setupKeyboardNavigation() {
-        document.addEventListener('keydown', (e) => {
+        // HIGH-003: Use tracked event listeners
+        this.keydownHandler = (e) => {
             // Detect keyboard navigation
             if (e.key === 'Tab') {
                 this.keyboardNavigationEnabled = true;
@@ -81,13 +122,15 @@ export class AccessibilityManager {
             }
             
             this.handleKeyboardShortcuts(e);
-        });
+        };
         
-        // Disable keyboard nav indicator on mouse use
-        document.addEventListener('mousedown', () => {
+        this.mousedownHandler = () => {
             this.keyboardNavigationEnabled = false;
             document.body.classList.remove('keyboard-nav');
-        });
+        };
+        
+        this.addTrackedEventListener(document, 'keydown', this.keydownHandler);
+        this.addTrackedEventListener(document, 'mousedown', this.mousedownHandler);
     }
 
     /**
@@ -396,17 +439,21 @@ export class AccessibilityManager {
         const inputs = document.querySelectorAll('input, select, textarea');
         
         inputs.forEach(input => {
-            input.addEventListener('invalid', (e) => {
+            // HIGH-003: Use tracked event listeners for form inputs
+            const invalidHandler = (e) => {
                 const label = document.querySelector(`label[for="${input.id}"]`)?.textContent || input.id;
                 this.announce(`Validation error in ${label}: ${e.target.validationMessage}`, 'assertive');
-            });
+            };
             
-            input.addEventListener('input', () => {
+            const inputHandler = () => {
                 // Clear previous error styling
                 input.classList.remove('error');
                 const errorMsg = input.parentNode.querySelector('.error-message');
                 if (errorMsg) errorMsg.remove();
-            });
+            };
+            
+            this.addTrackedEventListener(input, 'invalid', invalidHandler);
+            this.addTrackedEventListener(input, 'input', inputHandler);
         });
     }
 
@@ -468,6 +515,37 @@ export class AccessibilityManager {
             }
         });
     }
+
+    /**
+     * HIGH-003: Cleanup all event listeners and observers
+     */
+    cleanup() {
+        logger.info('Cleaning up AccessibilityManager...');
+        
+        // Remove all tracked event listeners
+        this.eventListeners.forEach(({ target, event, handler, options }) => {
+            try {
+                target.removeEventListener(event, handler, options);
+            } catch (e) {
+                logger.warn('Error removing event listener:', e);
+            }
+        });
+        this.eventListeners = [];
+        
+        // Disconnect mutation observer
+        if (this.mutationObserver) {
+            this.mutationObserver.disconnect();
+            this.mutationObserver = null;
+        }
+        
+        // Remove live region from DOM
+        if (this.liveRegion && this.liveRegion.parentNode) {
+            this.liveRegion.parentNode.removeChild(this.liveRegion);
+            this.liveRegion = null;
+        }
+        
+        logger.info('AccessibilityManager cleanup complete');
+    }
 }
 
 // Initialize accessibility manager
@@ -481,4 +559,11 @@ document.addEventListener('DOMContentLoaded', () => {
         window.accessibilityManager.setupFormValidation();
         window.accessibilityManager.setupDynamicContent();
     }, 1000);
+});
+
+// HIGH-003: Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (window.accessibilityManager) {
+        window.accessibilityManager.cleanup();
+    }
 });

@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+out/
+public/
+
+# Minified files
+*.min.js
+*.min.css
+
+# Vendor/Third-party libraries
+lib/
+vendor/
+third-party/
+
+# Specific third-party files
+lib/piexifjs.js
+lib/jszip.min.js
+
+# Development files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Documentation (if generated)
+docs/generated/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Log files
+*.log
+logs/

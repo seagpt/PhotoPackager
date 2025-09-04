@@ -1,36 +1,92 @@
 /**
+ * PhotoPackager Web Edition - Error Handling System
+ * 
+ * Copyright (c) 2025 DropShock Digital LLC
+ * Created by Steven Seagondollar
+ * 
+ * Licensed under the MIT License:
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * 
+ * This file is part of PhotoPackager Web Edition, an open-source photo processing tool.
+ * 
  * ErrorHandler.js
  * Comprehensive error handling and user feedback system
  * Provides user-friendly error messages and recovery options
  */
 
+import { config } from './Config.js';
+import { domSanitizer } from './DOMSanitizer.js';
+import { logger } from './Logger.js';
+
 export class ErrorHandler {
     constructor() {
         this.errorLog = [];
         this.maxLogSize = 100;
+        this.eventListeners = []; // Track event listeners for cleanup
         this.setupGlobalErrorHandling();
         this.initializeErrorUI();
+    }
+
+    /**
+     * Add tracked event listener for cleanup
+     */
+    addTrackedEventListener(element, event, handler, options) {
+        element.addEventListener(event, handler, options);
+        this.eventListeners.push({ element, event, handler, options });
     }
 
     /**
      * Set up global error handling
      */
     setupGlobalErrorHandling() {
-        // Handle unhandled JavaScript errors
-        window.addEventListener('error', (event) => {
+        // Handle unhandled JavaScript errors (ASAP-029)
+        const errorHandler = (event) => {
+            // Prevent default browser error reporting
+            event.preventDefault();
+            
             this.handleError('javascript_error', event.error || new Error(event.message), {
                 filename: event.filename,
                 lineno: event.lineno,
-                colno: event.colno
+                colno: event.colno,
+                stack: event.error?.stack
             });
-        });
+            
+            return false; // Prevent default browser error handling
+        };
+        this.addTrackedEventListener(window, 'error', errorHandler);
 
-        // Handle unhandled promise rejections
-        window.addEventListener('unhandledrejection', (event) => {
-            this.handleError('promise_rejection', event.reason, {
-                promise: event.promise
-            });
-        });
+        // Handle unhandled promise rejections (ASAP-029)
+        const rejectionHandler = (event) => {
+            // Prevent browser console warnings
+            event.preventDefault();
+            
+            const reason = event.reason;
+            const errorInfo = {
+                promise: event.promise,
+                reason: reason,
+                stack: reason?.stack || 'No stack trace available'
+            };
+            
+            this.handleError('promise_rejection', reason instanceof Error ? reason : new Error(String(reason)), errorInfo);
+        };
+        this.addTrackedEventListener(window, 'unhandledrejection', rejectionHandler);
 
         // Handle memory errors
         this.setupMemoryMonitoring();
@@ -291,15 +347,17 @@ export class ErrorHandler {
      * Bind error modal events
      */
     bindErrorEvents() {
-        document.getElementById('error-close').addEventListener('click', () => {
+        const closeHandler = () => {
             this.hideError();
-        });
+        };
+        this.addTrackedEventListener(document.getElementById('error-close'), 'click', closeHandler);
 
-        document.getElementById('error-overlay').addEventListener('click', (e) => {
+        const overlayHandler = (e) => {
             if (e.target.id === 'error-overlay') {
                 this.hideError();
             }
-        });
+        };
+        this.addTrackedEventListener(document.getElementById('error-overlay'), 'click', overlayHandler);
     }
 
     /**
@@ -334,7 +392,7 @@ export class ErrorHandler {
         }
 
         // Also log to console in development
-        console.error('PhotoPackager Error:', errorInfo);
+        logger.error('PhotoPackager Error:', errorInfo);
     }
 
     /**
@@ -359,8 +417,9 @@ export class ErrorHandler {
                 title = 'Memory Limit Reached';
                 message = 'Your browser has run out of memory. Try processing fewer files at once.';
                 actions = [
-                    { text: 'Reduce Files', action: () => this.suggestFileReduction(), primary: true },
-                    { text: 'Continue Anyway', action: () => this.hideError() }
+                    { text: 'Smart Reduction', action: () => this.smartFileReduction(), primary: true },
+                    { text: 'Memory Tips', action: () => this.showMemoryTips() },
+                    { text: 'Emergency Reset', action: () => this.emergencyRecovery() }
                 ];
                 break;
 
@@ -386,7 +445,8 @@ export class ErrorHandler {
                 title = 'Application Error';
                 message = 'An unexpected error occurred in the application. This might be due to a browser compatibility issue.';
                 actions = [
-                    { text: 'Reload App', action: () => window.location.reload(), primary: true },
+                    { text: 'Try Recovery', action: () => this.emergencyRecovery(), primary: true },
+                    { text: 'Reload App', action: () => window.location.reload() },
                     { text: 'Report Issue', action: () => this.reportIssue(errorInfo) }
                 ];
                 showDetails = true;
@@ -401,11 +461,33 @@ export class ErrorHandler {
                 ];
                 break;
 
+            case 'insufficient_memory':
+                title = 'Insufficient Memory';
+                message = error.message || 'Not enough memory available to process the selected files safely.';
+                actions = [
+                    { text: 'Smart Reduction', action: () => this.smartFileReduction(), primary: true },
+                    { text: 'Memory Tips', action: () => this.showMemoryTips() },
+                    { text: 'Emergency Reset', action: () => this.emergencyRecovery() }
+                ];
+                break;
+
+            case 'promise_rejection':
+                title = 'Unhandled Promise Error';
+                message = 'An asynchronous operation failed unexpectedly. This could be due to network issues or processing errors.';
+                actions = [
+                    { text: 'Retry Processing', action: () => this.retryProcessing(), primary: true },
+                    { text: 'Emergency Recovery', action: () => this.emergencyRecovery() },
+                    { text: 'Report Issue', action: () => this.reportIssue(errorInfo) }
+                ];
+                showDetails = true;
+                break;
+
             default:
                 title = 'Unexpected Error';
                 message = 'An unexpected error occurred. Please try again.';
                 actions = [
-                    { text: 'Try Again', action: () => this.hideError(), primary: true },
+                    { text: 'Retry Processing', action: () => this.retryProcessing(), primary: true },
+                    { text: 'Emergency Recovery', action: () => this.emergencyRecovery() },
                     { text: 'Report Issue', action: () => this.reportIssue(errorInfo) }
                 ];
                 showDetails = true;
@@ -433,8 +515,12 @@ export class ErrorHandler {
      * Show error modal
      */
     showError(title, message, actions = [], errorInfo = null) {
-        document.getElementById('error-title').textContent = title;
-        document.getElementById('error-message').innerHTML = message;
+        // Sanitize all user inputs (ASAP-021)
+        const sanitizedTitle = domSanitizer.sanitizeText(title);
+        const sanitizedMessage = domSanitizer.sanitizeErrorMessage(message);
+        
+        document.getElementById('error-title').textContent = sanitizedTitle;
+        domSanitizer.setTextContent(document.getElementById('error-message'), sanitizedMessage);
         
         // Show technical details if provided
         if (errorInfo) {
@@ -477,25 +563,55 @@ export class ErrorHandler {
         const existingWarnings = document.querySelectorAll('.warning-toast');
         existingWarnings.forEach(w => w.remove());
 
+        // Create warning toast safely (ASAP-021)
         const warning = document.createElement('div');
         warning.className = 'warning-toast';
-        warning.innerHTML = `
-            <div class="warning-title">${title}</div>
-            <div class="warning-message">${message}</div>
-            <div class="warning-actions">
-                ${actions.map(action => `
-                    <button class="warning-btn" data-action="${action.text}">
-                        ${action.text}
-                    </button>
-                `).join('')}
-                <button class="warning-btn" data-action="dismiss">Dismiss</button>
-            </div>
-        `;
+        
+        // Create title element safely
+        const titleDiv = domSanitizer.createElement('div', {
+            className: 'warning-title',
+            text: title
+        });
+        
+        // Create message element safely
+        const messageDiv = domSanitizer.createElement('div', {
+            className: 'warning-message', 
+            text: message
+        });
+        
+        // Create actions container safely
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'warning-actions';
+        
+        // Add action buttons safely
+        actions.forEach(action => {
+            const button = domSanitizer.createElement('button', {
+                className: 'warning-btn',
+                text: action.text,
+                attributes: {
+                    'data-action': domSanitizer.sanitizeText(action.text)
+                }
+            });
+            actionsDiv.appendChild(button);
+        });
+        
+        // Add dismiss button
+        const dismissBtn = domSanitizer.createElement('button', {
+            className: 'warning-btn',
+            text: 'Dismiss',
+            attributes: { 'data-action': 'dismiss' }
+        });
+        actionsDiv.appendChild(dismissBtn);
+        
+        // Assemble warning
+        warning.appendChild(titleDiv);
+        warning.appendChild(messageDiv);
+        warning.appendChild(actionsDiv);
 
         document.body.appendChild(warning);
 
         // Bind action events
-        warning.addEventListener('click', (e) => {
+        const warningClickHandler = (e) => {
             if (e.target.classList.contains('warning-btn')) {
                 const actionText = e.target.dataset.action;
                 const action = actions.find(a => a.text === actionText);
@@ -507,7 +623,8 @@ export class ErrorHandler {
                     warning.remove();
                 }
             }
-        });
+        };
+        this.addTrackedEventListener(warning, 'click', warningClickHandler);
 
         // Auto-dismiss after 10 seconds
         setTimeout(() => {
@@ -518,29 +635,233 @@ export class ErrorHandler {
     }
 
     /**
-     * Recovery action methods
+     * Comprehensive error recovery mechanisms (ASAP-040)
+     */
+    
+    /**
+     * Attempt to recover from processing errors with intelligent retry
      */
     retryProcessing() {
         if (window.photoPackagerApp) {
+            // Clear any error states first
+            this.hideError();
+            
+            // Reset loading states
+            if (window.loadingStateManager) {
+                window.loadingStateManager.clearAllStates();
+            }
+            
+            // Retry with current settings
+            config.log('🔄 Attempting to retry processing with recovery mechanisms');
             window.photoPackagerApp.startProcessing();
         }
     }
 
+    /**
+     * Skip problematic file during processing
+     */
     skipCurrentFile() {
-        // Implementation would depend on processing architecture
-        console.log('Skipping current file...');
+        config.log('⏭️ Skipping current file due to processing error');
+        
+        if (window.photoPackagerApp && window.photoPackagerApp.processor) {
+            // Notify processor to skip current file
+            window.photoPackagerApp.processor.skipCurrentFile = true;
+        }
+        
+        this.hideError();
     }
 
+    /**
+     * Restart processing from the beginning with cleanup
+     */
     restartProcessing() {
+        config.log('🔄 Restarting processing with full recovery cleanup');
+        
         if (window.photoPackagerApp) {
+            // Perform comprehensive cleanup
+            this.performRecoveryCleanup();
+            
+            // Reset to initial state
             window.photoPackagerApp.startOver();
         }
+        
+        this.hideError();
+    }
+
+    /**
+     * Comprehensive recovery cleanup (ASAP-040)
+     */
+    performRecoveryCleanup() {
+        config.log('🧹 Performing comprehensive recovery cleanup');
+        
+        try {
+            // Clear all loading states
+            if (window.loadingStateManager) {
+                window.loadingStateManager.clearAllStates();
+            }
+            
+            // Reset processing state in main app
+            if (window.photoPackagerApp) {
+                window.photoPackagerApp.processing = false;
+                window.photoPackagerApp.startTime = null;
+                window.photoPackagerApp.currentSessionId = null;
+            }
+            
+            // Clear memory monitor warnings
+            if (window.memoryMonitor) {
+                window.memoryMonitor.clearWarnings();
+            }
+            
+            // Force garbage collection if available
+            if (window.gc) {
+                window.gc();
+            }
+            
+            // Clear progress persistence
+            if (window.progressPersistence) {
+                window.progressPersistence.clearSession();
+            }
+            
+            config.log('✅ Recovery cleanup completed');
+            
+        } catch (cleanupError) {
+            logger.error('Recovery cleanup failed:', cleanupError);
+        }
+    }
+
+    /**
+     * Reduce file count with smart selection
+     */
+    smartFileReduction() {
+        config.log('🎯 Performing smart file reduction for memory recovery');
+        
+        if (window.photoPackagerApp && window.photoPackagerApp.currentFiles) {
+            const currentFiles = window.photoPackagerApp.currentFiles;
+            const targetCount = Math.min(25, Math.floor(currentFiles.length / 2));
+            
+            // Keep smaller files and remove larger ones
+            const sortedFiles = currentFiles.sort((a, b) => a.size - b.size);
+            const reducedFiles = sortedFiles.slice(0, targetCount);
+            
+            window.photoPackagerApp.currentFiles = reducedFiles;
+            
+            this.showWarning(
+                'File Count Reduced',
+                `Reduced from ${currentFiles.length} to ${reducedFiles.length} files to prevent memory issues. You can process the remaining files in a separate batch.`,
+                [{
+                    text: 'Continue Processing',
+                    action: () => this.retryProcessing(),
+                    primary: true
+                }, {
+                    text: 'Start Over',
+                    action: () => this.restartProcessing()
+                }]
+            );
+        }
+    }
+
+    /**
+     * Emergency recovery - full application reset
+     */
+    emergencyRecovery() {
+        config.log('🚨 Initiating emergency recovery procedure');
+        
+        try {
+            // Stop all processing
+            if (window.photoPackagerApp) {
+                window.photoPackagerApp.processing = false;
+            }
+            
+            // Full cleanup
+            this.performRecoveryCleanup();
+            
+            // Reset UI to initial state
+            const panels = ['dropZone', 'configPanel', 'progressPanel', 'completionPanel'];
+            panels.forEach(id => {
+                const panel = document.getElementById(id);
+                if (panel) {
+                    panel.style.display = id === 'dropZone' ? 'block' : 'none';
+                }
+            });
+            
+            // Clear file inputs
+            const fileInputs = document.querySelectorAll('input[type="file"]');
+            fileInputs.forEach(input => input.value = '');
+            
+            // Reset form to defaults
+            if (window.photoPackagerApp) {
+                window.photoPackagerApp.currentFiles = [];
+                window.photoPackagerApp.processor = null;
+                window.photoPackagerApp.packageBuilder = null;
+            }
+            
+            this.showWarning(
+                'Emergency Recovery Complete',
+                'The application has been reset to a stable state. You can now start a new processing session.',
+                [{
+                    text: 'Start Fresh',
+                    action: () => {
+                        this.hideError();
+                        window.location.hash = ''; // Clear any URL state
+                    },
+                    primary: true
+                }]
+            );
+            
+        } catch (emergencyError) {
+            logger.error('Emergency recovery failed:', emergencyError);
+            this.showCriticalError();
+        }
+    }
+
+    /**
+     * Show critical error with browser refresh option
+     */
+    showCriticalError() {
+        this.showError(
+            'Critical Error',
+            'A critical error has occurred. Please refresh the page to continue.',
+            [{
+                text: 'Refresh Page',
+                action: () => window.location.reload(),
+                primary: true
+            }, {
+                text: 'Report Issue',
+                action: () => this.reportIssue()
+            }],
+            { 
+                type: 'critical',
+                error: 'Critical system failure requiring page refresh'
+            }
+        );
     }
 
     suggestFileReduction() {
         this.showWarning(
             'Reduce File Count',
             'To prevent memory issues, try processing 50 files or fewer at once.',
+            [{
+                text: 'Got It',
+                action: () => {}
+            }]
+        );
+    }
+
+    /**
+     * Show memory optimization tips
+     */
+    showMemoryTips() {
+        const tips = [
+            '• Close unused browser tabs and windows',
+            '• Process photos in smaller batches (25-50 files)',
+            '• Use smaller file sizes when possible',
+            '• Restart your browser if problems persist',
+            '• Consider using Chrome for better memory management'
+        ];
+
+        this.showWarning(
+            'Memory Optimization Tips',
+            'To free up memory and improve performance:\n\n' + tips.join('\n'),
             [{
                 text: 'Got It',
                 action: () => {}
@@ -580,6 +901,24 @@ Context: ${JSON.stringify(errorInfo.context, null, 2)}
      */
     clearErrorLog() {
         this.errorLog = [];
+    }
+
+    /**
+     * Cleanup method to remove all event listeners
+     */
+    cleanup() {
+        // Remove all tracked event listeners
+        this.eventListeners.forEach(({ element, event, handler, options }) => {
+            try {
+                element.removeEventListener(event, handler, options);
+            } catch (e) {
+                logger.warn('Failed to remove event listener:', e);
+            }
+        });
+        this.eventListeners = [];
+        
+        // Clear error log
+        this.clearErrorLog();
     }
 }
 

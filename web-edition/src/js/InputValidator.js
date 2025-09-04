@@ -1,4 +1,31 @@
 /**
+ * PhotoPackager Web Edition - Input Validation System
+ * 
+ * Copyright (c) 2025 DropShock Digital LLC
+ * Created by Steven Seagondollar
+ * 
+ * Licensed under the MIT License:
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * 
+ * This file is part of PhotoPackager Web Edition, an open-source photo processing tool.
+ * 
  * InputValidator.js
  * Comprehensive input validation and sanitization system
  * Prevents malicious input and ensures data integrity
@@ -6,9 +33,10 @@
 
 export class InputValidator {
     constructor() {
-        this.maxFileSize = 500 * 1024 * 1024; // 500MB per file
-        this.maxTotalSize = 10 * 1024 * 1024 * 1024; // 10GB total
-        this.maxFileCount = 2000;
+        // CRITICAL: Reduced limits to prevent browser crashes
+        this.maxFileSize = 100 * 1024 * 1024; // 100MB per file (was 500MB)
+        this.maxTotalSize = 10 * 1024 * 1024 * 1024; // 10GB total (kept same)
+        this.maxFileCount = 1000; // 1000 files max (was 2000)
         this.maxProjectNameLength = 100;
         this.maxStudioNameLength = 100;
         this.maxEmailLength = 254; // RFC 5321 limit
@@ -39,6 +67,46 @@ export class InputValidator {
             /\.\./g, /\.\\/g, /\.\//, /\/\./g, /\\\./g,
             /%2e%2e/gi, /%2f/gi, /%5c/gi, /%00/gi
         ];
+
+        // ASAP-014: Dangerous folder patterns for directory traversal prevention
+        this.dangerousFolderPatterns = [
+            /^\//, // Absolute paths
+            /\\\\/, // UNC paths
+            /^[a-zA-Z]:/, // Windows drive letters
+            /\0/, // Null bytes
+            /\.\.[\/\\]/, // Parent directory references
+            /[\/\\]\.\.[\/\\]/, // Mid-path parent references
+            /[\/\\]\.$/, // Current directory at end
+            /^\.$/, // Just current directory
+            /^\.\./, // Starting with parent directory
+            /system32/i, // Windows system directories
+            /windows/i,
+            /program files/i,
+            /programdata/i,
+            /users/i,
+            /etc/i, // Unix system directories
+            /var/i,
+            /usr/i,
+            /bin/i,
+            /sbin/i,
+            /root/i,
+            /home/i,
+            // Additional system folder patterns
+            /system\s*volume\s*information/i,
+            /\.ds_store/i,
+            /thumbs\.db/i,
+            /desktop\.ini/i
+        ];
+
+        // Magic byte signatures for image files (security validation)
+        this.magicBytes = {
+            'jpeg': [0xFF, 0xD8, 0xFF],
+            'png': [0x89, 0x50, 0x4E, 0x47],
+            'webp': [0x52, 0x49, 0x46, 0x46], // RIFF header
+            'bmp': [0x42, 0x4D],
+            'gif': [0x47, 0x49, 0x46],
+            'tiff': [0x49, 0x49, 0x2A, 0x00] // Little-endian TIFF
+        };
     }
 
     /**
@@ -286,6 +354,14 @@ export class InputValidator {
             const fileValidation = this.validateSingleFile(file);
             
             if (fileValidation.valid) {
+                // Add sanitized filename property for safe usage (ASAP-011)
+                file.sanitizedName = this.sanitizeFileName(file.name);
+                
+                // ASAP-014: Add sanitized folder path for safe usage
+                if (file.webkitRelativePath) {
+                    file.sanitizedPath = this.sanitizeFolderPath(file.webkitRelativePath);
+                }
+                
                 validFiles.push(file);
                 totalSize += file.size;
             } else if (fileValidation.oversized) {
@@ -367,10 +443,24 @@ export class InputValidator {
             return result;
         }
 
-        // Check for path traversal attempts
+        // Check for path traversal attempts in filename (ASAP-014)
         if (this.pathTraversalPatterns.some(pattern => pattern.test(file.name))) {
             result.reason = 'Invalid file path';
             return result;
+        }
+
+        // ASAP-014: Check webkitRelativePath for directory traversal attacks
+        if (file.webkitRelativePath) {
+            if (this.pathTraversalPatterns.some(pattern => pattern.test(file.webkitRelativePath))) {
+                result.reason = 'Invalid folder structure - path traversal detected';
+                return result;
+            }
+            
+            // Additional checks for dangerous folder patterns
+            if (this.isDangerousFolderPath(file.webkitRelativePath)) {
+                result.reason = 'Invalid folder structure - dangerous path detected';
+                return result;
+            }
         }
 
         // Check file extension
@@ -392,16 +482,78 @@ export class InputValidator {
     }
 
     /**
-     * Sanitize file name for safe use
+     * Validate file magic bytes (async) for additional security
+     */
+    async validateFileMagicBytes(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const arr = new Uint8Array(e.target.result);
+                const isValidImage = this.checkMagicBytes(arr);
+                resolve({ valid: isValidImage, reason: isValidImage ? '' : 'Invalid image file format' });
+            };
+            reader.onerror = () => resolve({ valid: false, reason: 'Could not read file' });
+            reader.readAsArrayBuffer(file.slice(0, 32)); // Read first 32 bytes
+        });
+    }
+
+    /**
+     * Check if magic bytes match known image formats
+     */
+    checkMagicBytes(bytes) {
+        for (const [format, signature] of Object.entries(this.magicBytes)) {
+            if (signature.every((byte, index) => bytes[index] === byte)) {
+                return true;
+            }
+        }
+        
+        // Special case for TIFF big-endian
+        if (bytes[0] === 0x4D && bytes[1] === 0x4D && bytes[2] === 0x00 && bytes[3] === 0x2A) {
+            return true;
+        }
+        
+        // WebP needs additional validation (checks for WEBP after RIFF)
+        if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+            return bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Sanitize file name for safe use - Enhanced for ASAP-011 security requirements
      */
     sanitizeFileName(name) {
         return name
-            .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') // Replace invalid filename characters
+            // Remove path traversal attempts (ASAP-011 requirement)
+            .replace(/\.\.\/|\.\.\\|\.\.\//g, '') // Remove ../, ..\, ../
+            .replace(/\.\./g, '') // Remove any remaining .. patterns
+            
+            // Remove script tags and dangerous HTML (ASAP-011 requirement)
+            .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove <script> tags
+            .replace(/<[^>]*>/g, '') // Remove any HTML tags
+            .replace(/javascript:/gi, '') // Remove javascript: protocol
+            .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+            .replace(/data:/gi, '') // Remove data: protocol
+            
+            // Replace invalid filename characters (enhanced)
+            .replace(/[<>:"/\\|?*\x00-\x1f\x7f-\x9f]/g, '_') // Include extended ASCII control chars
+            .replace(/[#%&{}$!'"`@+]/g, '_') // Additional special characters
+            .replace(/[\u0000-\u001f\u007f-\u009f]/g, '_') // Unicode control characters
+            
+            // Clean up dots and path separators
             .replace(/^\.+/, '') // Remove leading dots
             .replace(/\.+$/, '') // Remove trailing dots
+            .replace(/[\/\\]+/g, '_') // Replace path separators
+            
+            // Normalize whitespace and underscores
             .replace(/\s+/g, '_') // Replace spaces with underscores
             .replace(/_+/g, '_') // Collapse multiple underscores
-            .substr(0, 255); // Limit length
+            .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+            
+            // Final length and safety checks
+            .substr(0, 255) // Limit length to filesystem limits
+            .trim() || 'sanitized_filename'; // Provide fallback if empty
     }
 
     /**
@@ -433,6 +585,86 @@ export class InputValidator {
      */
     getFileExtension(filename) {
         return filename.split('.').pop().toLowerCase();
+    }
+
+    /**
+     * ASAP-014: Check if folder path contains dangerous patterns
+     */
+    isDangerousFolderPath(path) {
+        if (!path || typeof path !== 'string') {
+            return false;
+        }
+
+        // Normalize path separators for consistent checking
+        const normalizedPath = path.replace(/\\/g, '/');
+        
+        // Check against dangerous folder patterns
+        if (this.dangerousFolderPatterns.some(pattern => pattern.test(normalizedPath))) {
+            return true;
+        }
+
+        // Check path depth (prevent deeply nested attacks)
+        const pathDepth = normalizedPath.split('/').length - 1;
+        if (pathDepth > 20) { // Maximum 20 levels deep
+            return true;
+        }
+
+        // Check for excessively long paths
+        if (normalizedPath.length > 4096) { // Maximum 4KB path length
+            return true;
+        }
+
+        // Check for hidden/system folder patterns
+        const hiddenSystemPatterns = [
+            /\/\$RECYCLE\.BIN/i,
+            /\/System Volume Information/i,
+            /\/\._/, // macOS resource forks
+            /\/\.DS_Store/i,
+            /\/Thumbs\.db/i,
+            /\/desktop\.ini/i,
+            /\/hiberfil\.sys/i,
+            /\/pagefile\.sys/i,
+            /\/swapfile\.sys/i
+        ];
+
+        if (hiddenSystemPatterns.some(pattern => pattern.test(normalizedPath))) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * ASAP-014: Sanitize folder path for safe usage
+     */
+    sanitizeFolderPath(path) {
+        if (!path || typeof path !== 'string') {
+            return 'Photos';
+        }
+
+        // Normalize and clean the path
+        let cleanPath = path
+            .replace(/\\/g, '/') // Normalize separators
+            .replace(/\/+/g, '/') // Remove multiple slashes
+            .replace(/^\/+/, '') // Remove leading slashes
+            .replace(/\/+$/, '') // Remove trailing slashes
+            .replace(/\.\.\//g, '') // Remove parent directory references with separator
+            .replace(/\.\.$/g, '') // Remove parent directory at end
+            .replace(/\.\./g, '') // Remove any remaining parent references
+            .replace(/\/\.\//g, '/') // Remove current directory references
+            .replace(/\/\.$/g, '') // Remove current directory at end
+            .replace(/^\.\//, '') // Remove current directory at start
+            .replace(/^\.$/g, '') // Remove if just current directory
+            .replace(/[<>:"|?*\0]/g, '_') // Replace invalid characters
+            .substring(0, 255); // Limit length
+            
+        // Final cleanup - remove any remaining consecutive slashes
+        cleanPath = cleanPath.replace(/\/+/g, '/');
+        
+        // Remove trailing slash
+        cleanPath = cleanPath.replace(/\/+$/, '');
+
+        return cleanPath || 'Photos';
     }
 
     /**

@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<!--
+PhotoPackager Web Edition - Main Application Interface
+
+Copyright (c) 2025 DropShock Digital LLC
+Created by Steven Seagondollar
+
+This file is part of PhotoPackager Web Edition, an open-source photo processing tool.
+-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -10,9 +18,13 @@
     <link rel="stylesheet" href="src/styles/mobile.css">
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
     
-    <!-- External Dependencies via CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.js"></script>
+    <!-- External Dependencies via CDN - With SRI for security (ASAP-020) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" 
+            integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" 
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.js" 
+            integrity="sha384-mjCisVk+9cQGYprByJbHxzwFO7BVEgR6iCftsCqnmHNKA8uzLYoRng5h1qKMvHjp" 
+            crossorigin="anonymous"></script>
     <script>
         // Make JSZip available globally for ES6 modules
         window.JSZip = window.JSZip || JSZip;
@@ -47,6 +59,14 @@
                 <p class="tagline">Make Photoshoots Client Accessible</p>
             </div>
         </header>
+
+        <!-- CRITICAL: Legal disclaimer banner -->
+        <div class="warning-banner" role="alert" aria-live="polite">
+            <div class="warning-content">
+                <strong>⚠️ NO WARRANTY - USE AT YOUR OWN RISK</strong>
+                <p>This is a hobby project with no guarantees. We are not responsible for lost photos or data. Your photos never leave your device, but processing may fail. Always backup important photos first.</p>
+            </div>
+        </div>
 
         <main id="main-content" class="main-content" role="main">
             <!-- File Drop Zone -->
@@ -233,6 +253,10 @@
                     </div>
                 </div>
                 
+                <div class="progress-actions">
+                    <button id="cancelProcessingBtn" class="btn btn-danger btn-cancel">Cancel Processing</button>
+                </div>
+                
                 <div id="progressLog" class="progress-log"></div>
             </div>
 
@@ -271,15 +295,28 @@
                 </div>
             </div>
         </main>
-
-        <footer class="app-footer">
-            <p>&copy; 2025 PhotoPackager by <a href="https://dropshockdigital.com" target="_blank">DropShock Digital LLC</a></p>
-            <div class="footer-links">
-                <a href="privacy-policy.html" target="_blank">Privacy Policy</a> | 
-                <a href="terms-of-service.html" target="_blank">Terms of Service</a>
-            </div>
-        </footer>
     </div>
+
+    <!-- Footer with version and copyright info -->
+    <footer class="app-footer">
+        <div class="footer-content">
+            <div class="version-info">
+                <span class="app-name">PhotoPackager Web Edition</span>
+                <span class="app-version" data-version="2.0.0">v2.0.0</span>
+                <span class="build-info">Build: <span id="buildDate">2025-01-04</span></span>
+                <span class="environment" id="environment"></span>
+            </div>
+            <div class="footer-copyright">
+                <p>&copy; 2025 PhotoPackager by <a href="https://dropshockdigital.com" target="_blank" rel="noopener">DropShock Digital LLC</a></p>
+            </div>
+            <div class="footer-links">
+                <a href="privacy-policy.html" target="_blank" rel="noopener">Privacy</a>
+                <a href="terms-of-service.html" target="_blank" rel="noopener">Terms</a>
+                <a href="https://github.com/seagpt/PhotoPackager" target="_blank" rel="noopener">GitHub</a>
+                <a href="#" id="cookieSettings" style="cursor: pointer;">Cookie Settings</a>
+            </div>
+        </div>
+    </footer>
 
     <script type="module" src="src/js/AnalyticsManager.js"></script>
     <script type="module" src="src/js/CookieConsent.js"></script>
@@ -288,7 +325,13 @@
     <script type="module" src="src/js/AccessibilityManager.js"></script>
     <script type="module" src="src/js/PerformanceOptimizer.js"></script>
     <script type="module" src="src/js/ProgressPersistence.js"></script>
+    <script type="module" src="src/js/LoadingStateManager.js"></script>
+    <script type="module" src="src/js/TooltipManager.js"></script>
+    <script type="module" src="src/js/KeyboardShortcuts.js"></script>
+    <script type="module" src="src/js/DragDropManager.js"></script>
+    <script type="module" src="src/js/FocusManager.js"></script>
     <script type="module" src="src/main.js"></script>
-    <script type="module" src="src/js/ComprehensiveUITester.js"></script>
+    <!-- UI Tester disabled for production -->
+    <!-- <script type="module" src="src/js/ComprehensiveUITester.js"></script> -->
 </body>
 </html>

@@ -1,23 +1,110 @@
 {
   "name": "photopackager-web",
   "version": "2.0.0",
-  "description": "PhotoPackager Web Edition - Client-side photo processing and packaging",
+  "description": "PhotoPackager Web Edition - Client-side photo processing and packaging tool for photographers",
   "main": "index.html",
+  "type": "module",
+  "homepage": "https://photopackager.dropshockdigital.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seagpt/PhotoPackager.git",
+    "directory": "web-edition"
+  },
+  "bugs": {
+    "url": "https://github.com/seagpt/PhotoPackager/issues",
+    "email": "steven.seagondollar@dropshockdigital.com"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "browserslist": [
+    "last 2 versions",
+    "> 1%",
+    "not dead",
+    "not ie <= 11"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "serve": "python3 -m http.server 8080"
+    "serve": "python3 -m http.server 8080",
+    "test": "node test-backend.js",
+    "test:watch": "nodemon test-backend.js",
+    "lint": "eslint src/ --ext .js",
+    "lint:fix": "eslint src/ --ext .js --fix",
+    "lint:check": "eslint --print-config src/main.js",
+    "clean": "rm -rf dist/ build/",
+    "docker:build": "docker build -t photopackager-web .",
+    "docker:run": "docker run -p 3000:80 photopackager-web"
   },
-  "keywords": ["photography", "image-processing", "client-delivery", "photo-packaging"],
-  "author": "Steven Seagondollar, DropShock Digital LLC",
+  "keywords": [
+    "photography", 
+    "image-processing", 
+    "client-delivery", 
+    "photo-packaging",
+    "photographer-tools",
+    "image-optimization",
+    "batch-processing",
+    "web-app",
+    "client-side",
+    "photography-workflow",
+    "raw-processing",
+    "exif-handling",
+    "responsive-images",
+    "photography-business"
+  ],
+  "author": {
+    "name": "Steven Seagondollar",
+    "email": "steven.seagondollar@dropshockdigital.com",
+    "url": "https://stevenseagondollar.com"
+  },
+  "contributors": [
+    {
+      "name": "DropShock Digital LLC",
+      "url": "https://dropshockdigital.com"
+    }
+  ],
   "license": "MIT",
+  "funding": {
+    "type": "individual",
+    "url": "https://github.com/sponsors/seagpt"
+  },
+  "files": [
+    "src/",
+    "index.html",
+    "vite.config.js",
+    "Dockerfile",
+    "nginx.conf",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "config": {
+    "port": 3000,
+    "host": "localhost"
+  },
   "devDependencies": {
     "vite": "^5.0.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "eslint": "^8.57.0",
+    "nodemon": "^3.0.0"
   },
   "dependencies": {
     "jszip": "^3.10.1",
     "exif-js": "^2.3.0"
-  }
+  },
+  "peerDependencies": {},
+  "optionalDependencies": {},
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
 }

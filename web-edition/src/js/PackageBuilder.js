@@ -1,8 +1,38 @@
 /**
+ * PhotoPackager Web Edition - ZIP Package Builder
+ * 
+ * Copyright (c) 2025 DropShock Digital LLC
+ * Created by Steven Seagondollar
+ * 
+ * Licensed under the MIT License:
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * 
+ * This file is part of PhotoPackager Web Edition, an open-source photo processing tool.
+ * 
  * PackageBuilder.js
  * Handles ZIP package creation and file organization
  * Replicates PhotoPackager's folder structure and packaging
  */
+
+import { config } from './Config.js';
+import { logger } from './Logger.js';
 
 // JSZip is loaded via CDN in index.html and made available globally
 
@@ -24,7 +54,68 @@ export class PackageBuilder {
         this.packageStats = {
             totalFiles: 0,
             totalSize: 0,
+            compressedSize: 0, // Added for zip bomb protection (ASAP-013)
             folders: []
+        };
+    }
+
+    /**
+     * Sanitize zip entry names for security (ASAP-011)
+     */
+    sanitizeZipEntryName(name) {
+        if (!name) return 'sanitized_file';
+        
+        return name
+            // Remove path traversal attempts
+            .replace(/\.\.\/|\.\.\\|\.\.\//g, '')
+            .replace(/\.\./g, '')
+            
+            // Remove dangerous characters for zip entries
+            .replace(/[<>:"|?*\x00-\x1f\x7f-\x9f]/g, '_')
+            .replace(/[\u0000-\u001f\u007f-\u009f]/g, '_')
+            
+            // Clean up path separators (convert to forward slashes)
+            .replace(/\\/g, '/')
+            .replace(/\/+/g, '/')
+            .replace(/^\/+|\/+$/g, '')
+            
+            // Final safety checks
+            .substring(0, 255) // Limit length
+            .trim() || 'sanitized_file';
+    }
+
+    /**
+     * Zip bomb protection - Check compression ratios and limits (ASAP-013)
+     */
+    checkZipBombProtection(packageStats) {
+        const MAX_COMPRESSION_RATIO = 100; // Maximum 100:1 compression ratio
+        const MAX_TOTAL_SIZE_GB = 50; // Maximum 50GB total uncompressed size
+        const MAX_FILE_COUNT = 10000; // Maximum 10,000 files per package
+        
+        // Check file count limit
+        if (packageStats.totalFiles > MAX_FILE_COUNT) {
+            throw new Error(`Package exceeds maximum file limit (${packageStats.totalFiles}/${MAX_FILE_COUNT} files). This could indicate a zip bomb attack.`);
+        }
+        
+        // Check total uncompressed size
+        const totalSizeGB = packageStats.totalSize / (1024 * 1024 * 1024);
+        if (totalSizeGB > MAX_TOTAL_SIZE_GB) {
+            throw new Error(`Package exceeds maximum size limit (${totalSizeGB.toFixed(1)}GB/${MAX_TOTAL_SIZE_GB}GB). This could indicate a zip bomb attack.`);
+        }
+        
+        // Calculate compression ratio (we'll update this during zip generation)
+        if (packageStats.compressedSize && packageStats.totalSize > 0) {
+            const compressionRatio = packageStats.totalSize / packageStats.compressedSize;
+            if (compressionRatio > MAX_COMPRESSION_RATIO) {
+                throw new Error(`Dangerous compression ratio detected (${compressionRatio.toFixed(1)}:1). This could be a zip bomb. Maximum allowed is ${MAX_COMPRESSION_RATIO}:1.`);
+            }
+        }
+        
+        return {
+            safe: true,
+            fileCount: packageStats.totalFiles,
+            totalSizeGB: totalSizeGB,
+            compressionRatio: packageStats.compressedSize ? (packageStats.totalSize / packageStats.compressedSize) : null
         };
     }
 
@@ -49,6 +140,21 @@ export class PackageBuilder {
         // Update package statistics
         this.updatePackageStats(processedResults);
         
+        // Zip bomb protection check (ASAP-013)
+        try {
+            const protectionResult = this.checkZipBombProtection(this.packageStats);
+            config.log('Zip bomb protection check passed:', protectionResult);
+        } catch (error) {
+            logger.error('Zip bomb protection triggered:', error.message);
+            if (window.errorHandler) {
+                window.errorHandler.showError('Package Security Warning', error.message, [
+                    { text: 'Reduce Files', action: () => {} },
+                    { text: 'Cancel', action: () => {} }
+                ]);
+            }
+            throw error;
+        }
+        
         return this.zip;
     }
 
@@ -62,7 +168,8 @@ export class PackageBuilder {
         
         for (const original of originals) {
             if (original && original.file) {
-                await originalsFolder.file(original.name, original.file);
+                const sanitizedName = this.sanitizeZipEntryName(original.name);
+                await originalsFolder.file(sanitizedName, original.file);
                 this.packageStats.totalFiles++;
                 this.packageStats.totalSize += original.file.size;
             }
@@ -81,7 +188,8 @@ export class PackageBuilder {
         
         for (const rawFile of rawFiles) {
             if (rawFile && rawFile.file) {
-                await rawFolder.file(rawFile.name, rawFile.file);
+                const sanitizedName = this.sanitizeZipEntryName(rawFile.name);
+                await rawFolder.file(sanitizedName, rawFile.file);
                 this.packageStats.totalFiles++;
                 this.packageStats.totalSize += rawFile.file.size;
             }
@@ -106,7 +214,8 @@ export class PackageBuilder {
             const jpgFolder = optimizedFolder.folder('Optimized JPGs');
             for (const jpg of outputs.optimizedJPG) {
                 if (jpg && jpg.blob) {
-                    await jpgFolder.file(jpg.name, jpg.blob);
+                    const sanitizedName = this.sanitizeZipEntryName(jpg.name);
+                    await jpgFolder.file(sanitizedName, jpg.blob);
                     this.packageStats.totalFiles++;
                     this.packageStats.totalSize += jpg.size;
                 }
@@ -118,7 +227,8 @@ export class PackageBuilder {
             const webpFolder = optimizedFolder.folder('Optimized WebPs');
             for (const webp of outputs.optimizedWebP) {
                 if (webp && webp.blob) {
-                    await webpFolder.file(webp.name, webp.blob);
+                    const sanitizedName = this.sanitizeZipEntryName(webp.name);
+                    await webpFolder.file(sanitizedName, webp.blob);
                     this.packageStats.totalFiles++;
                     this.packageStats.totalSize += webp.size;
                 }
@@ -144,7 +254,8 @@ export class PackageBuilder {
             const jpgFolder = compressedFolder.folder('Compressed JPGs');
             for (const jpg of outputs.compressedJPG) {
                 if (jpg && jpg.blob) {
-                    await jpgFolder.file(jpg.name, jpg.blob);
+                    const sanitizedName = this.sanitizeZipEntryName(jpg.name);
+                    await jpgFolder.file(sanitizedName, jpg.blob);
                     this.packageStats.totalFiles++;
                     this.packageStats.totalSize += jpg.size;
                 }
@@ -156,7 +267,8 @@ export class PackageBuilder {
             const webpFolder = compressedFolder.folder('Compressed WebPs');
             for (const webp of outputs.compressedWebP) {
                 if (webp && webp.blob) {
-                    await webpFolder.file(webp.name, webp.blob);
+                    const sanitizedName = this.sanitizeZipEntryName(webp.name);
+                    await webpFolder.file(sanitizedName, webp.blob);
                     this.packageStats.totalFiles++;
                     this.packageStats.totalSize += webp.size;
                 }
@@ -300,7 +412,7 @@ https://github.com/seagpt/PhotoPackager
     }
 
     /**
-     * Generate ZIP file for download
+     * Generate ZIP file for download - With zip bomb protection (ASAP-013)
      */
     async generateZipFile(options = {}) {
         const zipOptions = {
@@ -312,7 +424,44 @@ https://github.com/seagpt/PhotoPackager
             ...options
         };
 
-        return await this.zip.generateAsync(zipOptions);
+        // Generate the zip file
+        const zipBlob = await this.zip.generateAsync(zipOptions);
+        
+        // Post-generation zip bomb protection check
+        this.packageStats.compressedSize = zipBlob.size;
+        
+        try {
+            const protectionResult = this.checkZipBombProtection(this.packageStats);
+            config.log('Final zip bomb protection check passed:', protectionResult);
+            
+            // Log compression ratio for monitoring
+            if (protectionResult.compressionRatio) {
+                config.log(`Package compression ratio: ${protectionResult.compressionRatio.toFixed(2)}:1`);
+                
+                // Analytics tracking for suspicious compression ratios
+                if (protectionResult.compressionRatio > 50) {
+                    if (window.analytics) {
+                        window.analytics.trackError('high_compression_ratio', `${protectionResult.compressionRatio.toFixed(1)}:1`);
+                    }
+                    config.log(`High compression ratio detected: ${protectionResult.compressionRatio.toFixed(1)}:1`);
+                }
+            }
+            
+        } catch (error) {
+            logger.error('Final zip bomb protection check failed:', error.message);
+            
+            // Clean up the generated blob to prevent memory leaks
+            if (zipBlob && window.URL) {
+                window.URL.revokeObjectURL(zipBlob);
+            }
+            
+            if (window.errorHandler) {
+                window.errorHandler.showError('Package Security Error', error.message);
+            }
+            throw error;
+        }
+
+        return zipBlob;
     }
 
     /**
@@ -339,7 +488,8 @@ https://github.com/seagpt/PhotoPackager
             
             for (const original of processedResults.outputs.originals) {
                 if (original && original.file) {
-                    await folder.file(original.name, original.file);
+                    const sanitizedName = this.sanitizeZipEntryName(original.name);
+                    await folder.file(sanitizedName, original.file);
                 }
             }
             
@@ -360,6 +510,7 @@ https://github.com/seagpt/PhotoPackager
         this.packageStats = {
             totalFiles: 0,
             totalSize: 0,
+            compressedSize: 0, // Added for zip bomb protection (ASAP-013)
             folders: []
         };
     }
