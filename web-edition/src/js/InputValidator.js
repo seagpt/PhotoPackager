@@ -315,7 +315,8 @@ export class InputValidator {
     /**
      * Validate file array
      */
-    validateFiles(files) {
+    validateFiles(files, options = {}) {
+        const relaxed = options.relaxed || false;
         const result = { 
             valid: false, 
             validFiles: [], 
@@ -351,7 +352,7 @@ export class InputValidator {
         const invalidFiles = [];
 
         for (const file of files) {
-            const fileValidation = this.validateSingleFile(file);
+            const fileValidation = this.validateSingleFile(file, relaxed);
             
             if (fileValidation.valid) {
                 // Add sanitized filename property for safe usage (ASAP-011)
@@ -416,7 +417,7 @@ export class InputValidator {
     /**
      * Validate a single file
      */
-    validateSingleFile(file) {
+    validateSingleFile(file, relaxed = false) {
         const result = { valid: false, oversized: false, reason: '' };
 
         if (!file || typeof file !== 'object') {
@@ -463,18 +464,31 @@ export class InputValidator {
             }
         }
 
-        // Check file extension
+        // Check file extension (with relaxed mode support)
         const extension = this.getFileExtension(file.name);
-        if (!this.allowedExtensions.has(extension)) {
+        
+        // In relaxed mode, also accept common image extensions even if not in strict list
+        const isAllowedExtension = this.allowedExtensions.has(extension) || 
+            (relaxed && /^(jpg|jpeg|png|gif|bmp|webp|tiff|tif|heic|heif|avif)$/i.test(extension));
+            
+        if (!isAllowedExtension) {
             result.reason = `Unsupported file format (.${extension})`;
             return result;
         }
 
-        // Check MIME type if available (not all browsers provide accurate MIME types for all formats)
-        if (file.type && !this.allowedMimeTypes.has(file.type) && !extension.match(/^(arw|cr2|cr3|nef|dng|orf|rw2|pef|srw|raf|3fr|fff|iiq|rwl)$/i)) {
-            // Only strict MIME type checking for non-RAW formats
-            result.reason = `Unsupported MIME type (${file.type})`;
-            return result;
+        // Check MIME type if available (more lenient in relaxed mode)
+        if (file.type && !relaxed) {
+            // Strict MIME checking only in non-relaxed mode
+            if (!this.allowedMimeTypes.has(file.type) && !extension.match(/^(arw|cr2|cr3|nef|dng|orf|rw2|pef|srw|raf|3fr|fff|iiq|rwl)$/i)) {
+                result.reason = `Unsupported MIME type (${file.type})`;
+                return result;
+            }
+        } else if (file.type && relaxed) {
+            // In relaxed mode, only reject if MIME type is clearly not an image
+            if (file.type && !file.type.startsWith('image/') && !extension.match(/^(arw|cr2|cr3|nef|dng|orf|rw2|pef|srw|raf|3fr|fff|iiq|rwl|heic|heif|avif)$/i)) {
+                result.reason = `File does not appear to be an image (${file.type})`;
+                return result;
+            }
         }
 
         result.valid = true;

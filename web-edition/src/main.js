@@ -68,6 +68,9 @@ class PhotoPackagerWebApp {
         this.initializeUI();
         this.bindEvents();
         
+        // Debug: Check browser support
+        this.checkBrowserSupport();
+        
         // Track feature usage for initial settings
         this.bindFeatureTracking();
         
@@ -81,6 +84,28 @@ class PhotoPackagerWebApp {
         this.checkForResumableSessions();
         
         // CRITICAL: Cleanup handlers are added in bindEvents() as beforeUnloadHandler
+    }
+    
+    /**
+     * Check browser support for key features
+     */
+    checkBrowserSupport() {
+        const folderInput = document.getElementById('folderInput');
+        const features = {
+            webkitdirectory: 'webkitdirectory' in folderInput,
+            dataTransferItems: 'DataTransferItemList' in window,
+            webkitGetAsEntry: 'webkitGetAsEntry' in (DataTransferItem.prototype || {}),
+            fileReader: 'FileReader' in window,
+            canvas: 'HTMLCanvasElement' in window
+        };
+        
+        logger.info('Browser feature support:', features);
+        
+        // Update UI based on support
+        const dropZoneDesc = document.getElementById('drop-zone-description');
+        if (!features.webkitdirectory) {
+            dropZoneDesc.textContent = 'Click to select multiple image files. Folder selection not supported in this browser.';
+        }
     }
 
     /**
@@ -287,8 +312,25 @@ class PhotoPackagerWebApp {
         this.addTrackedEventListener(dropZone, 'dragleave', this.handleDragLeave.bind(this));
         this.addTrackedEventListener(dropZone, 'drop', this.handleDrop.bind(this));
         
-        // Folder selection
-        this.addTrackedEventListener(selectFolderBtn, 'click', () => folderInput.click());
+        // Folder selection with fallback support
+        this.addTrackedEventListener(selectFolderBtn, 'click', () => {
+            // Check if webkitdirectory is supported
+            if ('webkitdirectory' in folderInput) {
+                folderInput.click();
+            } else {
+                // Fallback: use regular file input and inform user
+                const regularInput = document.createElement('input');
+                regularInput.type = 'file';
+                regularInput.multiple = true;
+                regularInput.accept = 'image/*';
+                regularInput.addEventListener('change', this.handleFolderSelect.bind(this));
+                regularInput.click();
+                
+                // Show info to user about the limitation
+                logger.info('Browser does not support folder selection. Please select multiple files instead.');
+                window.errorHandler?.showInfo('Browser Limitation', 'Your browser doesn\'t support folder selection. Please select multiple image files instead.');
+            }
+        });
         this.addTrackedEventListener(folderInput, 'change', this.handleFolderSelect.bind(this));
         
         // Configuration events
@@ -374,20 +416,37 @@ class PhotoPackagerWebApp {
         loadingStateManager.setDropZoneLoading(true, 'Processing dropped files...');
         
         try {
-            const items = Array.from(e.dataTransfer.items);
             const files = [];
             
-            // Process dropped items
-            for (const item of items) {
-                if (item.kind === 'file') {
-                    const entry = item.webkitGetAsEntry();
-                    if (entry) {
-                        const entryFiles = await this.processDirectoryEntry(entry);
-                        files.push(...entryFiles);
+            // First try to get files from dataTransfer.files (fallback method)
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                logger.info('Using dataTransfer.files fallback method');
+                files.push(...Array.from(e.dataTransfer.files));
+            } else if (e.dataTransfer.items) {
+                // Process dropped items using modern API
+                logger.info('Using dataTransfer.items method');
+                const items = Array.from(e.dataTransfer.items);
+                
+                for (const item of items) {
+                    if (item.kind === 'file') {
+                        const entry = item.webkitGetAsEntry();
+                        if (entry) {
+                            logger.info(`Processing ${entry.isDirectory ? 'directory' : 'file'}: ${entry.name}`);
+                            const entryFiles = await this.processDirectoryEntry(entry);
+                            files.push(...entryFiles);
+                        } else {
+                            // Fallback to direct file access
+                            const file = item.getAsFile();
+                            if (file && this.isImageFile(file)) {
+                                logger.info(`Adding direct file: ${file.name}`);
+                                files.push(file);
+                            }
+                        }
                     }
                 }
             }
             
+            logger.info(`Total files found from drop: ${files.length}`);
             this.handleFiles(files);
         } catch (error) {
             logger.error('Error processing dropped files:', error);
@@ -407,6 +466,18 @@ class PhotoPackagerWebApp {
         
         try {
             const files = Array.from(e.target.files);
+            logger.info(`Selected ${files.length} files from folder input`);
+            
+            // Debug logging for folder selection
+            if (files.length > 0) {
+                logger.info('First few files:', files.slice(0, 3).map(f => ({
+                    name: f.name,
+                    type: f.type,
+                    size: f.size,
+                    path: f.webkitRelativePath
+                })));
+            }
+            
             this.handleFiles(files);
         } catch (error) {
             logger.error('Error processing selected files:', error);
@@ -477,13 +548,31 @@ class PhotoPackagerWebApp {
      */
     handleFiles(files) {
         try {
+            logger.info(`Processing ${files.length} files`);
+            
             if (files.length === 0) {
                 window.errorHandler?.handleError('no_files_selected', new Error('No files found in the selected folder'));
                 return;
             }
 
-            // Validate files using InputValidator
-            const validation = inputValidator.validateFiles(Array.from(files));
+            // Debug: Show first few files being processed
+            logger.info('First few files being processed:', files.slice(0, 5).map(f => ({
+                name: f.name,
+                type: f.type,
+                size: f.size,
+                isImageFile: this.isImageFile(f)
+            })));
+
+            // Validate files using InputValidator with relaxed validation
+            const validation = inputValidator.validateFiles(Array.from(files), { relaxed: true });
+            
+            logger.info('Validation results:', {
+                valid: validation.valid,
+                validCount: validation.stats.validCount,
+                invalidCount: validation.stats.invalidCount,
+                errors: validation.errors,
+                warnings: validation.warnings
+            });
             
             if (!validation.valid) {
                 window.errorHandler?.handleError('file_validation_error', new Error(validation.errors.join('; ')));
@@ -532,24 +621,34 @@ class PhotoPackagerWebApp {
     }
 
     /**
-     * Check if file is an image
+     * Check if file is an image (relaxed validation)
      */
     isImageFile(file) {
+        if (!file || !file.name) return false;
+        
         const imageTypes = [
             'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
-            'image/bmp', 'image/tiff', 'image/gif'
+            'image/bmp', 'image/tiff', 'image/gif', 'image/avif', 'image/heic', 'image/heif'
         ];
         
         const imageExtensions = [
             '.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.tif', '.gif',
             '.arw', '.cr2', '.cr3', '.nef', '.dng', '.orf', '.rw2', '.pef', 
-            '.srw', '.raf', '.3fr', '.fff', '.iiq', '.rwl'
+            '.srw', '.raf', '.3fr', '.fff', '.iiq', '.rwl', '.avif', '.heic', '.heif'
         ];
         
-        return imageTypes.includes(file.type) || 
-               imageExtensions.some(ext => 
-                   file.name.toLowerCase().endsWith(ext)
-               );
+        const fileName = file.name.toLowerCase();
+        const hasImageType = imageTypes.includes(file.type);
+        const hasImageExtension = imageExtensions.some(ext => fileName.endsWith(ext));
+        
+        // Be more lenient: if it has an image extension, consider it an image even if type is missing/wrong
+        const result = hasImageType || hasImageExtension;
+        
+        if (!result) {
+            logger.debug(`File rejected as non-image: ${file.name} (type: ${file.type})`);
+        }
+        
+        return result;
     }
 
     /**

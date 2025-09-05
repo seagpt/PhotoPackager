@@ -60,13 +60,6 @@ This file is part of PhotoPackager Web Edition, an open-source photo processing 
             </div>
         </header>
 
-        <!-- CRITICAL: Legal disclaimer banner -->
-        <div class="warning-banner" role="alert" aria-live="polite">
-            <div class="warning-content">
-                <strong>⚠️ NO WARRANTY - USE AT YOUR OWN RISK</strong>
-                <p>This is a hobby project with no guarantees. We are not responsible for lost photos or data. Your photos never leave your device, but processing may fail. Always backup important photos first.</p>
-            </div>
-        </div>
 
         <main id="main-content" class="main-content" role="main">
             <!-- File Drop Zone -->
@@ -79,6 +72,14 @@ This file is part of PhotoPackager Web Edition, an open-source photo processing 
                     <button id="selectFolderBtn" class="btn btn-primary" aria-describedby="drop-zone-description">Select Folder</button>
                 </div>
             </section>
+            
+            <!-- Legal disclaimer notice -->
+            <div class="info-notice" role="note" aria-live="polite">
+                <div class="info-content">
+                    <strong>⚠️ Important Notice</strong>
+                    <p>This is a hobby project with no warranties. Always backup important photos before processing. Your photos are processed locally and never leave your device.</p>
+                </div>
+            </div>
 
             <!-- Configuration Panel -->
             <section id="configPanel" class="config-panel" style="display: none;" role="region" aria-labelledby="config-panel-title">
