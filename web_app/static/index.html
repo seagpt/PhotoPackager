@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhotoPackager by DropShock Digital</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <main class="main-content">
+            <div class="logo-container">
+                <img src="img/logo.png" alt="PhotoPackager Logo" class="logo">
+            </div>
+
+            <form id="job-settings-form">
+                <div class="form-row">
+                    <label for="source-folder">Source Folder:</label>
+                    <input type="text" id="source-folder" name="source_folder" readonly>
+                    <button type="button" class="browse-btn" data-target="source-folder">Browse...</button>
+                </div>
+
+                <div class="form-row">
+                    <label for="output-folder">Output Folder:</label>
+                    <input type="text" id="output-folder" name="output_folder" readonly>
+                    <button type="button" class="browse-btn" data-target="output-folder">Browse...</button>
+                </div>
+
+                <div class="form-row">
+                    <label for="shoot-base-name">Shoot Base Name (optional):</label>
+                    <input type="text" id="shoot-base-name" name="shoot_base_name">
+                </div>
+
+                <div class="options-grid">
+                    <fieldset>
+                        <legend>Input/Output Files</legend>
+                        <label><input type="checkbox" name="process_original_files" checked disabled> Original Files</label>
+                        <label><input type="checkbox" name="process_raw_files"> RAW Files</label>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Generated Files</legend>
+                        <label><input type="checkbox" name="generate_optimized_jpg" checked> Optimized JPG</label>
+                        <label><input type="checkbox" name="generate_compressed_jpg" checked> Compressed JPG</label>
+                        <label><input type="checkbox" name="generate_optimized_webp"> Optimized WebP</label>
+                        <label><input type="checkbox" name="generate_compressed_webp"> Compressed WebP</label>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Processing Options</legend>
+                        <div class="form-row-small">
+                            <label for="quality_presets">Quality Presets</label>
+                            <select id="quality_presets" name="quality_presets">
+                                <option value="custom">Custom</option>
+                                <option value="high">High</option>
+                                <option value="web">Web</option>
+                            </select>
+                        </div>
+                        <div class="form-row-small">
+                            <label for="exif_option">EXIF Policy</label>
+                            <select id="exif_option" name="exif_option">
+                                <option value="keep">Keep</option>
+                                <option value="strip">Strip</option>
+                            </select>
+                        </div>
+                        <label><input type="checkbox" name="create_zip_archives" checked> Create ZIP Archives</label>
+                        <div class="form-row-small">
+                            <label for="max_workers">Max Workers:</label>
+                            <input type="number" id="max_workers" name="max_workers" value="10" min="1" max="32">
+                        </div>
+                    </fieldset>
+                </div>
+
+                <hr class="form-divider">
+
+                <div class="client-delivery-info">
+                    <h3 class="section-title">Client Delivery Information</h3>
+                    <div class="form-row">
+                        <label for="company_name">Company Name:</label>
+                        <input type="text" id="company_name" name="company_name" value="DropShock Digital LLC">
+                    </div>
+                    <div class="form-row">
+                        <label for="website_url">Website URL:</label>
+                        <input type="text" id="website_url" name="website_url" value="https://www.dropshockdigital.com">
+                    </div>
+                    <div class="form-row">
+                        <label for="support_email">Support Email:</label>
+                        <input type="text" id="support_email" name="support_email" value="support@dropshockdigital.com">
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button type="button" id="start-btn" class="btn-primary">▶ Start Processing</button>
+                    <button type="button" id="cancel-btn" class="btn-secondary">✖ Cancel</button>
+                    <button type="button" id="defaults-btn" class="btn-secondary">Save as Defaults</button>
+                </div>
+                <div id="status-bar">Done!</div>
+            </form>
+        </main>
+
+        <aside class="sidebar">
+            <div class="processing-log-container">
+                <h3>Processing Log</h3>
+                <pre id="processing-log">Waiting for job to start...</pre>
+            </div>
+        </aside>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

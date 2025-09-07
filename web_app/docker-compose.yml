@@ -1,0 +1,27 @@
+services:
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  web:
+    build: .
+    working_dir: /app/..
+    command: uvicorn web_app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./outputs:/app/outputs
+      - ./temp_uploads:/app/temp_uploads
+    depends_on:
+      - redis
+
+  worker:
+    build: .
+    working_dir: /app/..
+    command: celery -A web_app.worker.celery_app worker --loglevel=info
+    volumes:
+      - ./outputs:/app/outputs
+      - ./temp_uploads:/app/temp_uploads
+    depends_on:
+      - redis

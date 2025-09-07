@@ -1,0 +1,9 @@
+fastapi==0.111.0
+celery==5.4.0
+redis==5.0.4
+uvicorn[standard]==0.29.0
+gunicorn==22.0.0
+python-multipart==0.0.9
+pillow==10.3.0
+mcp==1.11.0
+fastmcp
